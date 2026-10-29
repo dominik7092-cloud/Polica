@@ -5,6 +5,8 @@ import {
   Banknote,
   Users,
   ShieldBan,
+  LogIn,
+  Activity,
 } from "lucide-react";
 import { Card, Button, Chip } from "@/components/ui";
 
@@ -47,10 +49,58 @@ export default async function AdminPage({
     console.error("Unable to load users:", usersError);
   }
 
+  // Load recent activity
+  const { data: activities, error: activitiesError } = await supabase
+    .from("activity_events")
+    .select(
+      "id, user_id, event_type, entity_type, entity_id, metadata, created_at"
+    )
+    .order("created_at", { ascending: false })
+    .limit(20);
+
+  if (activitiesError) {
+    console.error("Unable to load activity:", activitiesError);
+  }
+
   const registeredUsers = users?.length ?? 0;
 
   const bannedUsers =
     users?.filter((person) => person.banned_at !== null).length ?? 0;
+
+  function getUserName(userId: string | null) {
+    if (!userId) {
+      return "Deleted user";
+    }
+
+    const person = users?.find(
+      (registeredUser) => registeredUser.id === userId
+    );
+
+    return person?.first_name || "Unknown user";
+  }
+
+  function getActivityLabel(eventType: string) {
+    switch (eventType) {
+      case "login":
+        return "Logged in";
+      case "account_created":
+        return "Created account";
+      case "job_reserved":
+        return "Reserved a job";
+      case "job_submitted":
+        return "Submitted a job";
+      case "submission_approved":
+        return "Submission approved";
+      case "submission_rejected":
+        return "Submission rejected";
+      case "payout_requested":
+        return "Requested payout";
+      case "payout_paid":
+        return "Payout completed";
+      default:
+        return eventType.replaceAll("_", " ");
+    }
+  }
 
   return (
     <section className="px-5 py-8">
@@ -113,7 +163,65 @@ export default async function AdminPage({
         </Card>
       </div>
 
-      {/* Real users */}
+      {/* Recent activity */}
+      <div className="mt-8 flex items-center gap-2">
+        <Activity size={20} />
+
+        <h2 className="text-xl font-black">
+          Recent activity
+        </h2>
+      </div>
+
+      <div className="mt-3 space-y-3">
+        {activities && activities.length > 0 ? (
+          activities.map((event) => (
+            <Card
+              key={event.id}
+              className="p-4"
+            >
+              <div className="flex items-start gap-3">
+                <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-mint/20">
+                  <LogIn size={18} />
+                </div>
+
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="font-black">
+                        {getUserName(event.user_id)}
+                      </p>
+
+                      <p className="text-sm text-ink/60">
+                        {getActivityLabel(event.event_type)}
+                      </p>
+                    </div>
+
+                    <Chip>
+                      {event.event_type}
+                    </Chip>
+                  </div>
+
+                  <p className="mt-2 text-xs text-ink/40">
+                    {new Date(event.created_at).toLocaleString(
+                      params.locale === "hr"
+                        ? "hr-HR"
+                        : "en-GB"
+                    )}
+                  </p>
+                </div>
+              </div>
+            </Card>
+          ))
+        ) : (
+          <Card className="p-4">
+            <p className="text-sm text-ink/50">
+              No activity recorded yet.
+            </p>
+          </Card>
+        )}
+      </div>
+
+      {/* Registered users */}
       <h2 className="mb-3 mt-8 text-xl font-black">
         Registered users
       </h2>
@@ -180,7 +288,7 @@ export default async function AdminPage({
         )}
       </div>
 
-      {/* Demo section - we will connect this later */}
+      {/* Still demo data for now */}
       <h2 className="mb-3 mt-8 text-xl font-black">
         Flagged submissions
       </h2>
