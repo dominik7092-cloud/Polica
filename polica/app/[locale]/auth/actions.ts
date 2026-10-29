@@ -1,7 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { supabase } from "@/lib/supabase";
+import { createClient } from "@/lib/supabase/server";
 
 export async function signUp(formData: FormData) {
   const locale = String(formData.get("locale") || "en");
@@ -14,7 +14,7 @@ export async function signUp(formData: FormData) {
     redirect(`/${locale}/auth/signup?error=invalid`);
   }
 
-  const client = supabase();
+ const client = createClient();
 
   const { error } = await client.auth.signUp({
     email,
@@ -41,7 +41,7 @@ export async function logIn(formData: FormData) {
   const email = String(formData.get("email") || "").trim();
   const password = String(formData.get("password") || "");
 
-  const client = supabase();
+  const client = createClient();
 
   const { error } = await client.auth.signInWithPassword({
     email,
@@ -58,7 +58,7 @@ export async function logIn(formData: FormData) {
 export async function logOut(formData: FormData) {
   const locale = String(formData.get("locale") || "en");
 
-  const client = supabase();
+  const client = createClient();
 
   await client.auth.signOut();
 
