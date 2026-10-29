@@ -1,6 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import {
+  useState,
+} from "react";
 import {
   Plus,
   MapPin,
@@ -10,8 +12,17 @@ import {
   AlertCircle,
   Send,
 } from "lucide-react";
-import { supabase } from "@/lib/supabase";
-import { Button, Card, Chip } from "./ui";
+import {
+  supabase,
+} from "@/lib/supabase";
+import {
+  Button,
+  Card,
+  Chip,
+} from "./ui";
+import {
+  StoreMapPicker,
+} from "./store-map-picker";
 
 const jobTypes = [
   "Audit",
@@ -24,19 +35,61 @@ const jobTypes = [
 ];
 
 export function CreateJob() {
-  const [chain, setChain] = useState("");
-  const [address, setAddress] = useState("");
-  const [lat, setLat] = useState("");
-  const [lng, setLng] = useState("");
+  const [
+    chain,
+    setChain,
+  ] = useState("");
 
-  const [title, setTitle] = useState("");
-  const [jobType, setJobType] = useState("Audit");
+  const [
+    address,
+    setAddress,
+  ] = useState("");
 
-  const [reward, setReward] = useState("7.50");
-  const [refund, setRefund] = useState("0");
-  const [minutes, setMinutes] = useState("12");
+  const [
+    latitude,
+    setLatitude,
+  ] =
+    useState<number | null>(
+      null
+    );
 
-  const [questions, setQuestions] = useState(
+  const [
+    longitude,
+    setLongitude,
+  ] =
+    useState<number | null>(
+      null
+    );
+
+  const [
+    title,
+    setTitle,
+  ] = useState("");
+
+  const [
+    jobType,
+    setJobType,
+  ] = useState("Audit");
+
+  const [
+    reward,
+    setReward,
+  ] = useState("7.50");
+
+  const [
+    refund,
+    setRefund,
+  ] = useState("0");
+
+  const [
+    minutes,
+    setMinutes,
+  ] = useState("12");
+
+  const [
+    questions,
+    setQuestions,
+  ] = useState(
     [
       "Is the display available?",
       "Enter the displayed price",
@@ -45,70 +98,119 @@ export function CreateJob() {
     ].join("\n")
   );
 
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
+  const [
+    startDate,
+    setStartDate,
+  ] = useState("");
 
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState("");
-  const [created, setCreated] = useState(false);
+  const [
+    endDate,
+    setEndDate,
+  ] = useState("");
+
+  const [
+    submitting,
+    setSubmitting,
+  ] = useState(false);
+
+  const [
+    error,
+    setError,
+  ] = useState("");
+
+  const [
+    created,
+    setCreated,
+  ] = useState(false);
 
   function buildSteps() {
     return questions
       .split("\n")
-      .map((line) => line.trim())
+      .map((line) =>
+        line.trim()
+      )
       .filter(Boolean)
-      .map((question, index) => {
-        const lower = question.toLowerCase();
-
-        let type = "text";
-
-        if (lower.includes("photo")) {
-          type = "photo";
-        } else if (lower.includes("price")) {
-          type = "price";
-        } else if (
-          lower.startsWith("is ") ||
-          lower.startsWith("are ")
-        ) {
-          type = "single_choice";
-        }
-
-        return {
-          id: `step-${index + 1}`,
-          type,
+      .map(
+        (
           question,
-          required: true,
+          index
+        ) => {
+          const lower =
+            question.toLowerCase();
 
-          ...(type === "single_choice"
-            ? {
-                options: ["Yes", "No"],
-              }
-            : {}),
+          let type =
+            "text";
 
-          ...(type === "text"
-            ? {
-                minimum_length: 10,
-              }
-            : {}),
+          if (
+            lower.includes(
+              "photo"
+            )
+          ) {
+            type =
+              "photo";
+          } else if (
+            lower.includes(
+              "price"
+            )
+          ) {
+            type =
+              "price";
+          } else if (
+            lower.startsWith(
+              "is "
+            ) ||
+            lower.startsWith(
+              "are "
+            )
+          ) {
+            type =
+              "single_choice";
+          }
 
-          ...(type === "price"
-            ? {
-                currency: "EUR",
-              }
-            : {}),
-        };
-      });
+          return {
+            id: `step-${
+              index + 1
+            }`,
+
+            type,
+
+            question,
+
+            required: true,
+
+            ...(type ===
+            "single_choice"
+              ? {
+                  options: [
+                    "Yes",
+                    "No",
+                  ],
+                }
+              : {}),
+
+            ...(type ===
+            "text"
+              ? {
+                  minimum_length:
+                    10,
+                }
+              : {}),
+
+            ...(type ===
+            "price"
+              ? {
+                  currency:
+                    "EUR",
+                }
+              : {}),
+          };
+        }
+      );
   }
 
   async function createJob() {
     setError("");
     setCreated(false);
-
-    const rewardValue = Number(reward);
-    const refundValue = Number(refund || "0");
-    const minutesValue = Number(minutes);
-    const latValue = Number(lat);
-    const lngValue = Number(lng);
 
     if (
       !chain.trim() ||
@@ -118,99 +220,210 @@ export function CreateJob() {
       setError(
         "Chain, address and mission title are required."
       );
+
       return;
     }
 
     if (
-      !Number.isFinite(latValue) ||
-      latValue < -90 ||
-      latValue > 90 ||
-      !Number.isFinite(lngValue) ||
-      lngValue < -180 ||
-      lngValue > 180
+      latitude === null ||
+      longitude === null
     ) {
-      setError("Enter valid store coordinates.");
+      setError(
+        "Select the exact store location on the map."
+      );
+
       return;
     }
 
+    const rewardValue =
+      Number(reward);
+
+    const refundValue =
+      Number(
+        refund || "0"
+      );
+
+    const minutesValue =
+      Number(minutes);
+
     if (
-      !Number.isFinite(rewardValue) ||
+      !Number.isFinite(
+        rewardValue
+      ) ||
       rewardValue < 1
     ) {
-      setError("Reward must be at least €1.");
+      setError(
+        "Reward must be at least €1."
+      );
+
       return;
     }
 
     if (
-      !Number.isFinite(minutesValue) ||
+      !Number.isFinite(
+        minutesValue
+      ) ||
       minutesValue < 1
     ) {
       setError(
-        "Enter a valid estimated mission duration."
+        "Enter a valid mission duration."
       );
+
       return;
     }
-
-    if (!startDate || !endDate) {
-      setError("Select the mission time window.");
-      return;
-    }
-
-    const start = new Date(startDate);
-    const end = new Date(endDate);
 
     if (
-      Number.isNaN(start.getTime()) ||
-      Number.isNaN(end.getTime()) ||
+      !startDate ||
+      !endDate
+    ) {
+      setError(
+        "Select the mission time window."
+      );
+
+      return;
+    }
+
+    const start =
+      new Date(
+        startDate
+      );
+
+    const end =
+      new Date(
+        endDate
+      );
+
+    if (
+      Number.isNaN(
+        start.getTime()
+      ) ||
+      Number.isNaN(
+        end.getTime()
+      ) ||
       end <= start
     ) {
       setError(
         "The mission end time must be after the start time."
       );
+
       return;
     }
 
-    const steps = buildSteps();
+    const steps =
+      buildSteps();
 
-    if (steps.length === 0) {
-      setError("Add at least one mission step.");
+    if (
+      steps.length === 0
+    ) {
+      setError(
+        "Add at least one mission step."
+      );
+
       return;
     }
 
     setSubmitting(true);
 
-    const client = supabase();
+    const client =
+      supabase();
 
-    const { error: createError } =
-      await client.rpc("create_job_with_store", {
-        p_chain: chain.trim(),
-        p_address: address.trim(),
-        p_lat: latValue,
-        p_lng: lngValue,
-        p_title: title.trim(),
-        p_job_type: jobType,
-        p_reward_cents: Math.round(
-          rewardValue * 100
-        ),
-        p_refund_cents: Math.round(
-          Math.max(refundValue, 0) * 100
-        ),
-        p_estimated_minutes: Math.round(
-          minutesValue
-        ),
-        p_starts_at: start.toISOString(),
-        p_ends_at: end.toISOString(),
-        p_steps: steps,
-      });
+    const {
+      error:
+        createError,
+    } = await client.rpc(
+      "create_job_with_store",
+      {
+        p_chain:
+          chain.trim(),
+
+        p_address:
+          address.trim(),
+
+        p_lat:
+          latitude,
+
+        p_lng:
+          longitude,
+
+        p_title:
+          title.trim(),
+
+        p_job_type:
+          jobType,
+
+        p_reward_cents:
+          Math.round(
+            rewardValue *
+              100
+          ),
+
+        p_refund_cents:
+          Math.round(
+            Math.max(
+              Number.isFinite(
+                refundValue
+              )
+                ? refundValue
+                : 0,
+              0
+            ) * 100
+          ),
+
+        p_estimated_minutes:
+          Math.round(
+            minutesValue
+          ),
+
+        p_starts_at:
+          start.toISOString(),
+
+        p_ends_at:
+          end.toISOString(),
+
+        p_steps:
+          steps,
+      }
+    );
 
     if (createError) {
-      setError(createError.message);
-      setSubmitting(false);
+      setError(
+        createError.message
+      );
+
+      setSubmitting(
+        false
+      );
+
       return;
     }
 
     setSubmitting(false);
     setCreated(true);
+  }
+
+  function resetForm() {
+    setCreated(false);
+
+    setChain("");
+    setAddress("");
+    setLatitude(null);
+    setLongitude(null);
+    setTitle("");
+    setJobType("Audit");
+    setReward("7.50");
+    setRefund("0");
+    setMinutes("12");
+    setStartDate("");
+    setEndDate("");
+
+    setQuestions(
+      [
+        "Is the display available?",
+        "Enter the displayed price",
+        "Take a clear photo of the display",
+        "Describe any visibility or availability issue",
+      ].join("\n")
+    );
   }
 
   if (created) {
@@ -226,20 +439,25 @@ export function CreateJob() {
         </h2>
 
         <p className="mt-2 text-sm text-ink/55">
-          The mission is now available to eligible
+          The mission is now
+          available to eligible
           Polica agents.
         </p>
 
         <Button
           type="button"
           className="mt-5 w-full"
-          onClick={() => {
-            setCreated(false);
-            setTitle("");
-          }}
+          onClick={
+            resetForm
+          }
         >
-          <Plus className="mr-2 inline" size={18} />
-          Create another mission
+          <Plus
+            className="mr-2 inline"
+            size={18}
+          />
+
+          Create another
+          mission
         </Button>
       </Card>
     );
@@ -249,7 +467,9 @@ export function CreateJob() {
     <div className="mt-6 space-y-5">
       <Card className="p-5">
         <div className="flex items-center gap-2">
-          <MapPin size={20} />
+          <MapPin
+            size={20}
+          />
 
           <h2 className="text-xl font-black">
             Store
@@ -263,8 +483,14 @@ export function CreateJob() {
 
           <input
             value={chain}
-            onChange={(event) =>
-              setChain(event.target.value)
+            onChange={(
+              event
+            ) =>
+              setChain(
+                event
+                  .target
+                  .value
+              )
             }
             placeholder="Konzum"
             className="mt-2 w-full rounded-2xl border border-black/10 bg-white px-4 py-4 outline-none focus:border-mint"
@@ -277,55 +503,49 @@ export function CreateJob() {
           </span>
 
           <input
-            value={address}
-            onChange={(event) =>
-              setAddress(event.target.value)
+            value={
+              address
+            }
+            onChange={(
+              event
+            ) =>
+              setAddress(
+                event
+                  .target
+                  .value
+              )
             }
             placeholder="Radnička cesta 49, Zagreb"
             className="mt-2 w-full rounded-2xl border border-black/10 bg-white px-4 py-4 outline-none focus:border-mint"
           />
         </label>
 
-        <div className="mt-4 grid grid-cols-2 gap-3">
-          <label>
-            <span className="text-sm font-bold">
-              Latitude
-            </span>
+        <div className="mt-5">
+          <p className="mb-3 text-sm font-bold">
+            Store location
+          </p>
 
-            <input
-              type="number"
-              step="any"
-              value={lat}
-              onChange={(event) =>
-                setLat(event.target.value)
-              }
-              placeholder="45.8002"
-              className="mt-2 w-full rounded-2xl border border-black/10 bg-white px-4 py-4 outline-none focus:border-mint"
-            />
-          </label>
+          <StoreMapPicker
+            latitude={
+              latitude
+            }
+            longitude={
+              longitude
+            }
+            onChange={(
+              newLatitude,
+              newLongitude
+            ) => {
+              setLatitude(
+                newLatitude
+              );
 
-          <label>
-            <span className="text-sm font-bold">
-              Longitude
-            </span>
-
-            <input
-              type="number"
-              step="any"
-              value={lng}
-              onChange={(event) =>
-                setLng(event.target.value)
-              }
-              placeholder="15.9974"
-              className="mt-2 w-full rounded-2xl border border-black/10 bg-white px-4 py-4 outline-none focus:border-mint"
-            />
-          </label>
+              setLongitude(
+                newLongitude
+              );
+            }}
+          />
         </div>
-
-        <p className="mt-3 text-xs text-ink/40">
-          Latitude and longitude are temporary. We'll
-          replace this with map-based store selection.
-        </p>
       </Card>
 
       <Card className="p-5">
@@ -340,8 +560,14 @@ export function CreateJob() {
 
           <input
             value={title}
-            onChange={(event) =>
-              setTitle(event.target.value)
+            onChange={(
+              event
+            ) =>
+              setTitle(
+                event
+                  .target
+                  .value
+              )
             }
             placeholder="Check beverage display"
             className="mt-2 w-full rounded-2xl border border-black/10 bg-white px-4 py-4 outline-none focus:border-mint"
@@ -354,30 +580,45 @@ export function CreateJob() {
           </p>
 
           <div className="mt-2 flex flex-wrap gap-2">
-            {jobTypes.map((type) => (
-              <button
-                type="button"
-                key={type}
-                onClick={() => setJobType(type)}
-              >
-                <Chip
-                  className={
-                    jobType === type
-                      ? "bg-ink text-white"
-                      : "bg-cream"
+            {jobTypes.map(
+              (type) => (
+                <button
+                  type="button"
+                  key={
+                    type
+                  }
+                  onClick={() =>
+                    setJobType(
+                      type
+                    )
                   }
                 >
-                  {type}
-                </Chip>
-              </button>
-            ))}
+                  <Chip
+                    className={
+                      jobType ===
+                      type
+                        ? "bg-ink text-white"
+                        : "bg-cream"
+                    }
+                  >
+                    {
+                      type
+                    }
+                  </Chip>
+                </button>
+              )
+            )}
           </div>
         </div>
 
         <div className="mt-5 grid grid-cols-2 gap-3">
           <label>
             <span className="flex items-center gap-1 text-sm font-bold">
-              <Euro size={15} />
+              <Euro
+                size={
+                  15
+                }
+              />
               Reward
             </span>
 
@@ -385,9 +626,17 @@ export function CreateJob() {
               type="number"
               min="1"
               step="0.50"
-              value={reward}
-              onChange={(event) =>
-                setReward(event.target.value)
+              value={
+                reward
+              }
+              onChange={(
+                event
+              ) =>
+                setReward(
+                  event
+                    .target
+                    .value
+                )
               }
               className="mt-2 w-full rounded-2xl border border-black/10 bg-white px-4 py-4 outline-none focus:border-mint"
             />
@@ -395,16 +644,28 @@ export function CreateJob() {
 
           <label>
             <span className="flex items-center gap-1 text-sm font-bold">
-              <Clock size={15} />
+              <Clock
+                size={
+                  15
+                }
+              />
               Minutes
             </span>
 
             <input
               type="number"
               min="1"
-              value={minutes}
-              onChange={(event) =>
-                setMinutes(event.target.value)
+              value={
+                minutes
+              }
+              onChange={(
+                event
+              ) =>
+                setMinutes(
+                  event
+                    .target
+                    .value
+                )
               }
               className="mt-2 w-full rounded-2xl border border-black/10 bg-white px-4 py-4 outline-none focus:border-mint"
             />
@@ -413,7 +674,8 @@ export function CreateJob() {
 
         <label className="mt-4 block">
           <span className="text-sm font-bold">
-            Product refund (optional)
+            Product refund
+            (optional)
           </span>
 
           <input
@@ -421,8 +683,14 @@ export function CreateJob() {
             min="0"
             step="0.50"
             value={refund}
-            onChange={(event) =>
-              setRefund(event.target.value)
+            onChange={(
+              event
+            ) =>
+              setRefund(
+                event
+                  .target
+                  .value
+              )
             }
             className="mt-2 w-full rounded-2xl border border-black/10 bg-white px-4 py-4 outline-none focus:border-mint"
           />
@@ -435,21 +703,32 @@ export function CreateJob() {
         </h2>
 
         <p className="mt-2 text-sm text-ink/50">
-          Enter one instruction per line.
+          Enter one instruction
+          per line.
         </p>
 
         <textarea
           rows={8}
-          value={questions}
-          onChange={(event) =>
-            setQuestions(event.target.value)
+          value={
+            questions
+          }
+          onChange={(
+            event
+          ) =>
+            setQuestions(
+              event
+                .target
+                .value
+            )
           }
           className="mt-4 w-full resize-none rounded-2xl border border-black/10 bg-white p-4 outline-none focus:border-mint"
         />
 
         <p className="mt-3 text-xs text-ink/40">
-          Polica currently detects photo, price,
-          yes/no and text steps automatically.
+          Polica recognizes
+          photo, price,
+          yes/no and text
+          steps automatically.
         </p>
       </Card>
 
@@ -465,9 +744,17 @@ export function CreateJob() {
 
           <input
             type="datetime-local"
-            value={startDate}
-            onChange={(event) =>
-              setStartDate(event.target.value)
+            value={
+              startDate
+            }
+            onChange={(
+              event
+            ) =>
+              setStartDate(
+                event
+                  .target
+                  .value
+              )
             }
             className="mt-2 w-full rounded-2xl border border-black/10 bg-white px-4 py-4 outline-none focus:border-mint"
           />
@@ -480,9 +767,17 @@ export function CreateJob() {
 
           <input
             type="datetime-local"
-            value={endDate}
-            onChange={(event) =>
-              setEndDate(event.target.value)
+            value={
+              endDate
+            }
+            onChange={(
+              event
+            ) =>
+              setEndDate(
+                event
+                  .target
+                  .value
+              )
             }
             className="mt-2 w-full rounded-2xl border border-black/10 bg-white px-4 py-4 outline-none focus:border-mint"
           />
@@ -495,15 +790,22 @@ export function CreateJob() {
             className="shrink-0"
             size={18}
           />
-          <p>{error}</p>
+
+          <p>
+            {error}
+          </p>
         </div>
       )}
 
       <Button
         type="button"
-        disabled={submitting}
+        disabled={
+          submitting
+        }
         className="w-full bg-coral py-4"
-        onClick={() => void createJob()}
+        onClick={() =>
+          void createJob()
+        }
       >
         <Send
           className="mr-2 inline"
