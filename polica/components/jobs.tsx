@@ -17,15 +17,9 @@ import {
 import { supabase } from "@/lib/supabase";
 import { Button, Card, Chip } from "./ui";
 
-type StoreData = {
-  chain: string | null;
-  address: string;
-  lat: number;
-  lng: number;
-};
-
 type RawJob = {
   id: string;
+  store_id: string;
   title: string;
   job_type: string;
   reward_cents: number;
@@ -34,7 +28,14 @@ type RawJob = {
   starts_at: string | null;
   ends_at: string | null;
   steps: unknown;
-  stores: StoreData | StoreData[] | null;
+};
+
+type RawStore = {
+  id: string;
+  chain: string | null;
+  address: string;
+  lat: number;
+  lng: number;
 };
 
 type PolicaJob = {
@@ -62,26 +63,15 @@ const jobColors: Record<string, string> = {
   "Mystery shop": "#f43f5e",
 };
 
-function normalizeStore(
-  stores: StoreData | StoreData[] | null
-): StoreData | null {
-  if (!stores) {
-    return null;
-  }
-
-  if (Array.isArray(stores)) {
-    return stores[0] ?? null;
-  }
-
-  return stores;
-}
-
 export function Jobs() {
   const [jobs, setJobs] = useState<PolicaJob[]>([]);
   const [query, setQuery] = useState("");
-  const [selectedType, setSelectedType] = useState("All jobs");
-  const [active, setActive] = useState<PolicaJob | null>(null);
-  const [detail, setDetail] = useState<PolicaJob | null>(null);
+  const [selectedType, setSelectedType] =
+    useState("All jobs");
+  const [active, setActive] =
+    useState<PolicaJob | null>(null);
+  const [detail, setDetail] =
+    useState<PolicaJob | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
 
@@ -91,69 +81,142 @@ export function Jobs() {
 
     const client = supabase();
 
-const { data, error } = await client
-  .from("jobs")
-  .select(`
-    id,
-    title,
-    job_type,
-    reward_cents,
-    refund_cents,
-    estimated_minutes,
-    starts_at,
-    ends_at,
-    steps,
-    stores (
-      chain,
-      address,
-      lat,
-      lng
-    )
-  `)
-  .eq("published", true)
-  .order("reward_cents", { ascending: false });
+    /*
+     * Load published jobs first.
+     * Jobs and stores are loaded separately to avoid problems
+     * with nested Supabase relationships or store RLS.
+     */
+    const {
+      data: jobsData,
+      error: jobsError,
+    } = await client
+      .from("jobs")
+      .select(`
+        id,
+        store_id,
+        title,
+        job_type,
+        reward_cents,
+        refund_cents,
+        estimated_minutes,
+        starts_at,
+        ends_at,
+        steps
+      `)
+      .eq("published", true)
+      .order("reward_cents", {
+        ascending: false,
+      });
 
-    if (error) {
-      console.error("Unable to load jobs:", error);
-      setLoadError("We couldn't load available jobs.");
+    if (jobsError) {
+      console.error(
+        "Unable to load jobs:",
+        jobsError
+      );
+
+      setLoadError(jobsError.message);
       setJobs([]);
       setLoading(false);
       return;
     }
 
-    const rawJobs = (data ?? []) as unknown as RawJob[];
+    const rawJobs =
+      (jobsData ?? []) as RawJob[];
 
-    const normalizedJobs: PolicaJob[] = rawJobs
-      .map((job) => {
-        const store = normalizeStore(job.stores);
+    if (rawJobs.length === 0) {
+      setJobs([]);
+      setLoading(false);
+      return;
+    }
 
-        if (!store) {
-          return null;
-        }
+    const storeIds = Array.from(
+      new Set(
+        rawJobs
+          .map((job) => job.store_id)
+          .filter(
+            (storeId): storeId is string =>
+              Boolean(storeId)
+          )
+      )
+    );
+
+    let stores: RawStore[] = [];
+
+    if (storeIds.length > 0) {
+      const {
+        data: storesData,
+        error: storesError,
+      } = await client
+        .from("stores")
+        .select(`
+          id,
+          chain,
+          address,
+          lat,
+          lng
+        `)
+        .in("id", storeIds);
+
+      if (storesError) {
+        /*
+         * Do not hide the jobs if store details cannot be read.
+         * The job remains visible with a fallback store name
+         * and address.
+         */
+        console.error(
+          "Unable to load stores:",
+          storesError
+        );
+      } else {
+        stores =
+          (storesData ?? []) as RawStore[];
+      }
+    }
+
+    const storesById = new Map<
+      string,
+      RawStore
+    >(
+      stores.map((store) => [
+        store.id,
+        store,
+      ])
+    );
+
+    const normalizedJobs: PolicaJob[] =
+      rawJobs.map((job) => {
+        const store = storesById.get(
+          job.store_id
+        );
 
         return {
           id: job.id,
           title: job.title,
-          chain: store.chain || "Independent store",
-          address: store.address,
+          chain:
+            store?.chain ||
+            "Store",
+          address:
+            store?.address ||
+            "Address unavailable",
           type: job.job_type,
-          reward: job.reward_cents / 100,
-          refund: (job.refund_cents ?? 0) / 100,
-          minutes: job.estimated_minutes,
-          lat: store.lat,
-          lng: store.lng,
-          stepsCount: Array.isArray(job.steps)
-            ? job.steps.length
-            : 0,
+          reward:
+            job.reward_cents / 100,
+          refund:
+            (job.refund_cents ?? 0) /
+            100,
+          minutes:
+            job.estimated_minutes,
+          lat: store?.lat ?? 0,
+          lng: store?.lng ?? 0,
+          stepsCount:
+            Array.isArray(job.steps)
+              ? job.steps.length
+              : 0,
           color:
             jobColors[job.job_type] ||
             "#1fd49a",
         };
-      })
-      .filter(
-        (job): job is PolicaJob =>
-          job !== null
-      );
+      });
 
     setJobs(normalizedJobs);
     setLoading(false);
@@ -165,14 +228,21 @@ const { data, error } = await client
 
   const availableTypes = useMemo(() => {
     const uniqueTypes = Array.from(
-      new Set(jobs.map((job) => job.type))
+      new Set(
+        jobs.map((job) => job.type)
+      )
     );
 
-    return ["All jobs", ...uniqueTypes];
+    return [
+      "All jobs",
+      ...uniqueTypes,
+    ];
   }, [jobs]);
 
   const filteredJobs = useMemo(() => {
-    const normalizedQuery = query.trim().toLowerCase();
+    const normalizedQuery = query
+      .trim()
+      .toLowerCase();
 
     return jobs.filter((job) => {
       const matchesType =
@@ -189,12 +259,21 @@ const { data, error } = await client
         .toLowerCase();
 
       const matchesSearch =
-        !normalizedQuery ||
-        searchableText.includes(normalizedQuery);
+        normalizedQuery.length === 0 ||
+        searchableText.includes(
+          normalizedQuery
+        );
 
-      return matchesType && matchesSearch;
+      return (
+        matchesType &&
+        matchesSearch
+      );
     });
-  }, [jobs, query, selectedType]);
+  }, [
+    jobs,
+    query,
+    selectedType,
+  ]);
 
   return (
     <>
@@ -218,7 +297,9 @@ const { data, error } = await client
               placeholder="Search jobs or stores"
               value={query}
               onChange={(event) =>
-                setQuery(event.target.value)
+                setQuery(
+                  event.target.value
+                )
               }
             />
           </label>
@@ -228,28 +309,34 @@ const { data, error } = await client
             aria-label="Job filters"
             className="rounded-2xl bg-ink p-4 text-white"
           >
-            <SlidersHorizontal size={19} />
+            <SlidersHorizontal
+              size={19}
+            />
           </button>
         </div>
 
         <div className="mt-4 flex gap-2 overflow-x-auto pb-1">
-          {availableTypes.map((type) => (
-            <button
-              type="button"
-              key={type}
-              onClick={() => setSelectedType(type)}
-            >
-              <Chip
-                className={
-                  selectedType === type
-                    ? "bg-ink text-white"
-                    : "bg-white"
+          {availableTypes.map(
+            (type) => (
+              <button
+                type="button"
+                key={type}
+                onClick={() =>
+                  setSelectedType(type)
                 }
               >
-                {type}
-              </Chip>
-            </button>
-          ))}
+                <Chip
+                  className={
+                    selectedType === type
+                      ? "bg-ink text-white"
+                      : "bg-white"
+                  }
+                >
+                  {type}
+                </Chip>
+              </button>
+            )
+          )}
         </div>
       </section>
 
@@ -264,7 +351,8 @@ const { data, error } = await client
               {loading
                 ? "Loading jobs"
                 : `${filteredJobs.length} ${
-                    filteredJobs.length === 1
+                    filteredJobs.length ===
+                    1
                       ? "job"
                       : "jobs"
                   }`}
@@ -293,25 +381,29 @@ const { data, error } = await client
           </Card>
         )}
 
-        {!loading && loadError && (
-          <Card className="p-6 text-center">
-            <p className="font-black">
-              Jobs temporarily unavailable
-            </p>
+        {!loading &&
+          loadError && (
+            <Card className="p-6 text-center">
+              <p className="font-black">
+                Jobs temporarily
+                unavailable
+              </p>
 
-            <p className="mt-2 text-sm text-ink/50">
-              {loadError}
-            </p>
+              <p className="mt-2 text-sm text-ink/50">
+                {loadError}
+              </p>
 
-            <Button
-              type="button"
-              className="mt-4"
-              onClick={() => void loadJobs()}
-            >
-              Try again
-            </Button>
-          </Card>
-        )}
+              <Button
+                type="button"
+                className="mt-4"
+                onClick={() =>
+                  void loadJobs()
+                }
+              >
+                Try again
+              </Button>
+            </Card>
+          )}
 
         {!loading &&
           !loadError &&
@@ -322,7 +414,8 @@ const { data, error } = await client
               </p>
 
               <p className="mt-2 text-sm text-ink/50">
-                Try another search or job type.
+                No published jobs are
+                currently available.
               </p>
             </Card>
           )}
@@ -331,81 +424,109 @@ const { data, error } = await client
           !loadError &&
           filteredJobs.length > 0 && (
             <div className="space-y-4">
-              {filteredJobs.map((job, index) => (
-                <motion.button
-                  type="button"
-                  initial={{
-                    opacity: 0,
-                    y: 16,
-                  }}
-                  animate={{
-                    opacity: 1,
-                    y: 0,
-                  }}
-                  transition={{
-                    delay: index * 0.06,
-                  }}
-                  key={job.id}
-                  onClick={() => setDetail(job)}
-                  className="w-full text-left"
-                >
-                  <Card className="overflow-hidden p-4">
-                    <div className="flex items-start gap-4">
-                      <div
-                        className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl text-xl"
-                        style={{
-                          background:
-                            job.color + "2a",
-                        }}
-                      >
-                        <ShoppingBag
+              {filteredJobs.map(
+                (job, index) => (
+                  <motion.button
+                    type="button"
+                    initial={{
+                      opacity: 0,
+                      y: 16,
+                    }}
+                    animate={{
+                      opacity: 1,
+                      y: 0,
+                    }}
+                    transition={{
+                      delay:
+                        index * 0.06,
+                    }}
+                    key={job.id}
+                    onClick={() =>
+                      setDetail(job)
+                    }
+                    className="w-full text-left"
+                  >
+                    <Card className="overflow-hidden p-4">
+                      <div className="flex items-start gap-4">
+                        <div
+                          className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl text-xl"
                           style={{
-                            color: job.color,
+                            background:
+                              job.color +
+                              "2a",
                           }}
-                        />
-                      </div>
+                        >
+                          <ShoppingBag
+                            style={{
+                              color:
+                                job.color,
+                            }}
+                          />
+                        </div>
 
-                      <div className="min-w-0 flex-1">
-                        <div className="flex justify-between gap-3">
-                          <div>
-                            <p className="text-xs font-bold uppercase tracking-wide text-ink/45">
-                              {job.chain} · {job.type}
-                            </p>
-
-                            <h3 className="mt-1 font-black leading-tight">
-                              {job.title}
-                            </h3>
-                          </div>
-
-                          <div className="text-right">
-                            <p className="text-xl font-black">
-                              €{job.reward.toFixed(2)}
-                            </p>
-
-                            {job.refund > 0 && (
-                              <p className="text-[10px] font-bold text-coral">
-                                +€{job.refund.toFixed(2)} refund
+                        <div className="min-w-0 flex-1">
+                          <div className="flex justify-between gap-3">
+                            <div>
+                              <p className="text-xs font-bold uppercase tracking-wide text-ink/45">
+                                {job.chain} ·{" "}
+                                {job.type}
                               </p>
-                            )}
+
+                              <h3 className="mt-1 font-black leading-tight">
+                                {job.title}
+                              </h3>
+                            </div>
+
+                            <div className="text-right">
+                              <p className="text-xl font-black">
+                                €
+                                {job.reward.toFixed(
+                                  2
+                                )}
+                              </p>
+
+                              {job.refund >
+                                0 && (
+                                <p className="text-[10px] font-bold text-coral">
+                                  +€
+                                  {job.refund.toFixed(
+                                    2
+                                  )}{" "}
+                                  refund
+                                </p>
+                              )}
+                            </div>
+                          </div>
+
+                          <div className="mt-3 flex items-start gap-3 text-xs font-semibold text-ink/50">
+                            <span className="flex min-w-0 items-start gap-1">
+                              <MapPin
+                                className="mt-0.5 shrink-0"
+                                size={13}
+                              />
+
+                              <span>
+                                {
+                                  job.address
+                                }
+                              </span>
+                            </span>
+
+                            <span className="flex shrink-0 items-center gap-1">
+                              <Clock
+                                size={13}
+                              />
+
+                              {job.minutes}{" "}
+                              min
+                            </span>
                           </div>
                         </div>
-
-                        <div className="mt-3 flex items-center gap-3 text-xs font-semibold text-ink/50">
-                          <span className="flex items-center gap-1">
-                            <MapPin size={13} />
-                            {job.address}
-                          </span>
-
-                          <span className="flex shrink-0 items-center gap-1">
-                            <Clock size={13} />
-                            {job.minutes} min
-                          </span>
-                        </div>
                       </div>
-                    </div>
-                  </Card>
-                </motion.button>
-              ))}
+                    </Card>
+                  </motion.button>
+                )
+              )}
             </div>
           )}
       </section>
@@ -415,11 +536,13 @@ const { data, error } = await client
           <Card className="flex items-center justify-between bg-ink p-4 text-white">
             <div>
               <p className="text-[10px] font-bold uppercase tracking-widest text-mint">
-                Active job · reservation connection next
+                Active job · local
+                preview
               </p>
 
               <p className="font-bold">
-                {active.chain}: {active.title}
+                {active.chain}:{" "}
+                {active.title}
               </p>
             </div>
 
@@ -432,15 +555,29 @@ const { data, error } = await client
         {detail && (
           <motion.div
             className="fixed inset-0 z-[60] bg-black/30"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={() => setDetail(null)}
+            initial={{
+              opacity: 0,
+            }}
+            animate={{
+              opacity: 1,
+            }}
+            exit={{
+              opacity: 0,
+            }}
+            onClick={() =>
+              setDetail(null)
+            }
           >
             <motion.div
-              initial={{ y: "100%" }}
-              animate={{ y: 0 }}
-              exit={{ y: "100%" }}
+              initial={{
+                y: "100%",
+              }}
+              animate={{
+                y: 0,
+              }}
+              exit={{
+                y: "100%",
+              }}
               transition={{
                 type: "spring",
                 damping: 28,
@@ -453,7 +590,9 @@ const { data, error } = await client
               <button
                 type="button"
                 aria-label="Close job details"
-                onClick={() => setDetail(null)}
+                onClick={() =>
+                  setDetail(null)
+                }
                 className="absolute right-5 top-5 rounded-full bg-cream p-2"
               >
                 <X size={18} />
@@ -473,13 +612,17 @@ const { data, error } = await client
                   size={16}
                 />
 
-                {detail.chain} · {detail.address}
+                {detail.chain} ·{" "}
+                {detail.address}
               </p>
 
               <div className="my-6 grid grid-cols-3 gap-2">
                 <div className="rounded-2xl bg-cream p-3 text-center">
                   <p className="font-black">
-                    €{detail.reward.toFixed(2)}
+                    €
+                    {detail.reward.toFixed(
+                      2
+                    )}
                   </p>
 
                   <p className="text-[10px] font-bold uppercase text-ink/45">
@@ -515,10 +658,12 @@ const { data, error } = await client
                 </p>
 
                 <p className="mt-2 text-sm leading-relaxed text-ink/65">
-                  Visit the store and complete{" "}
-                  {detail.stepsCount} guided task steps.
-                  Complete the job while you are at the
-                  assigned location.
+                  Visit the store and
+                  complete{" "}
+                  {detail.stepsCount}{" "}
+                  guided task steps while
+                  at the assigned
+                  location.
                 </p>
               </div>
 
@@ -534,7 +679,9 @@ const { data, error } = await client
               </Button>
 
               <p className="mt-3 text-center text-xs text-ink/40">
-                Reservation database connection is the next step
+                Database reservation will
+                be connected after job
+                visibility is verified.
               </p>
             </motion.div>
           </motion.div>
