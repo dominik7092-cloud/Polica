@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import CreateJob from "@/components/create-job";
+import { CreateJob } from "@/components/create-job";
 
 export default async function ClientPage({
   params,
@@ -16,9 +16,7 @@ export default async function ClientPage({
   } = await supabase.auth.getUser();
 
   if (!user) {
-    redirect(
-      `/${params.locale}/auth/login`
-    );
+    redirect(`/${params.locale}/auth/login`);
   }
 
   const {
@@ -31,9 +29,7 @@ export default async function ClientPage({
     .single();
 
   if (profileError || !profile) {
-    redirect(
-      `/${params.locale}/jobs`
-    );
+    redirect(`/${params.locale}/jobs`);
   }
 
   const allowed =
@@ -41,9 +37,7 @@ export default async function ClientPage({
     profile.role === "client";
 
   if (!allowed) {
-    redirect(
-      `/${params.locale}/jobs`
-    );
+    redirect(`/${params.locale}/jobs`);
   }
 
   return (
