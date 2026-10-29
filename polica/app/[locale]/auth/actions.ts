@@ -14,7 +14,7 @@ export async function signUp(formData: FormData) {
     redirect(`/${locale}/auth/signup?error=invalid`);
   }
 
- const client = createClient();
+  const client = createClient();
 
   const { error } = await client.auth.signUp({
     email,
@@ -22,9 +22,9 @@ export async function signUp(formData: FormData) {
     options: {
       data: {
         first_name: firstName,
-        country_code: countryCode
-      }
-    }
+        country_code: countryCode,
+      },
+    },
   });
 
   if (error) {
@@ -43,13 +43,26 @@ export async function logIn(formData: FormData) {
 
   const client = createClient();
 
-  const { error } = await client.auth.signInWithPassword({
+  const { data, error } = await client.auth.signInWithPassword({
     email,
-    password
+    password,
   });
 
-  if (error) {
+  if (error || !data.user) {
     redirect(`/${locale}/auth/login?error=invalid_credentials`);
+  }
+
+  // Record successful login
+  const { error: activityError } = await client
+    .from("activity_events")
+    .insert({
+      user_id: data.user.id,
+      event_type: "login",
+      metadata: {},
+    });
+
+  if (activityError) {
+    console.error("Unable to record login activity:", activityError);
   }
 
   redirect(`/${locale}/jobs`);
