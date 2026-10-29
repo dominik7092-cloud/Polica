@@ -1,0 +1,2 @@
+export function validIBAN(input:string){const iban=input.replace(/\s/g,'').toUpperCase();if(!/^[A-Z]{2}\d{2}[A-Z0-9]{11,30}$/.test(iban))return false;const r=iban.slice(4)+iban.slice(0,4);const n=r.replace(/[A-Z]/g,c=>String(c.charCodeAt(0)-55));let mod=0;for(const d of n)mod=(mod*10+Number(d))%97;return mod===1}
+export function haversineKm(aLat:number,aLng:number,bLat:number,bLng:number){const R=6371,d=Math.PI/180,x=(bLat-aLat)*d,y=(bLng-aLng)*d;const h=Math.sin(x/2)**2+Math.cos(aLat*d)*Math.cos(bLat*d)*Math.sin(y/2)**2;return 2*R*Math.asin(Math.sqrt(h))}
