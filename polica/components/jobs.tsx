@@ -4,6 +4,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import {
@@ -23,6 +24,11 @@ import {
   RefreshCw,
   AlertCircle,
   Play,
+  ArrowLeft,
+  ArrowRight,
+  RotateCcw,
+  Navigation,
+  Send,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import {
@@ -84,6 +90,13 @@ type ActiveReservation = {
   job: PolicaJob;
 };
 
+type PositionData = {
+  lat: number;
+  lng: number;
+  accuracy: number;
+  capturedAt: string;
+};
+
 const jobColors: Record<string, string> = {
   Audit: "#1fd49a",
   Survey: "#4da3ff",
@@ -97,26 +110,32 @@ const jobColors: Record<string, string> = {
 function formatCountdown(seconds: number) {
   const safeSeconds = Math.max(0, seconds);
   const minutes = Math.floor(safeSeconds / 60);
-  const remainingSeconds = safeSeconds % 60;
+  const remainingSeconds =
+    safeSeconds % 60;
 
   return `${String(minutes).padStart(
     2,
     "0"
-  )}:${String(remainingSeconds).padStart(
-    2,
-    "0"
-  )}`;
+  )}:${String(
+    remainingSeconds
+  ).padStart(2, "0")}`;
 }
 
 function getReservationMessage(
   message: string
 ) {
-  if (message.includes("ONE_ACTIVE_JOB")) {
+  if (
+    message.includes(
+      "ONE_ACTIVE_JOB"
+    )
+  ) {
     return "You already have an active job.";
   }
 
   if (
-    message.includes("JOB_ALREADY_RESERVED") ||
+    message.includes(
+      "JOB_ALREADY_RESERVED"
+    ) ||
     message.includes(
       "duplicate key value"
     )
@@ -125,37 +144,78 @@ function getReservationMessage(
   }
 
   if (
-    message.includes("JOB_NOT_AVAILABLE")
+    message.includes(
+      "JOB_NOT_AVAILABLE"
+    )
   ) {
     return "This job is no longer available.";
   }
 
   if (
-    message.includes("ACCOUNT_NOT_AVAILABLE")
+    message.includes(
+      "ACCOUNT_NOT_AVAILABLE"
+    )
   ) {
     return "Your account cannot reserve jobs.";
-  }
-
-  if (
-    message.includes("NOT_AUTHENTICATED")
-  ) {
-    return "Please log in before reserving a job.";
   }
 
   return "The job could not be reserved. Please try again.";
 }
 
+function getSubmissionMessage(
+  message: string
+) {
+  if (
+    message.includes(
+      "RESERVATION_EXPIRED"
+    )
+  ) {
+    return "Your reservation has expired.";
+  }
+
+  if (
+    message.includes(
+      "RESERVATION_NOT_FOUND"
+    )
+  ) {
+    return "Your active reservation could not be found.";
+  }
+
+  if (
+    message.includes(
+      "PHOTO_REQUIRED"
+    )
+  ) {
+    return "A live evidence photo is required.";
+  }
+
+  if (
+    message.includes(
+      "GPS_REQUIRED"
+    )
+  ) {
+    return "Location verification is required.";
+  }
+
+  return "The mission could not be submitted. Please try again.";
+}
+
 export function Jobs() {
   const [jobs, setJobs] =
     useState<PolicaJob[]>([]);
+
   const [query, setQuery] =
     useState("");
+
   const [
     selectedType,
     setSelectedType,
   ] = useState("All jobs");
+
   const [detail, setDetail] =
-    useState<PolicaJob | null>(null);
+    useState<PolicaJob | null>(
+      null
+    );
 
   const [
     activeReservation,
@@ -172,21 +232,131 @@ export function Jobs() {
 
   const [loading, setLoading] =
     useState(true);
+
   const [
     reservationLoading,
     setReservationLoading,
   ] = useState(false);
-  const [
-    loadError,
-    setLoadError,
-  ] = useState("");
+
   const [
     reservationError,
     setReservationError,
   ] = useState("");
 
-  const loadJobs = useCallback(
-    async () => {
+  const [
+    loadError,
+    setLoadError,
+  ] = useState("");
+
+  const [
+    missionOpen,
+    setMissionOpen,
+  ] = useState(false);
+
+  const [
+    currentStep,
+    setCurrentStep,
+  ] = useState(0);
+
+  const [
+    availability,
+    setAvailability,
+  ] = useState("");
+
+  const [price, setPrice] =
+    useState("");
+
+  const [
+    observation,
+    setObservation,
+  ] = useState("");
+
+  const [
+    photoBlob,
+    setPhotoBlob,
+  ] = useState<Blob | null>(
+    null
+  );
+
+  const [
+    photoPreview,
+    setPhotoPreview,
+  ] = useState("");
+
+  const [
+    cameraOpen,
+    setCameraOpen,
+  ] = useState(false);
+
+  const [
+    cameraError,
+    setCameraError,
+  ] = useState("");
+
+  const [
+    position,
+    setPosition,
+  ] =
+    useState<PositionData | null>(
+      null
+    );
+
+  const [
+    locationLoading,
+    setLocationLoading,
+  ] = useState(false);
+
+  const [
+    submissionLoading,
+    setSubmissionLoading,
+  ] = useState(false);
+
+  const [
+    submissionError,
+    setSubmissionError,
+  ] = useState("");
+
+  const [
+    submissionComplete,
+    setSubmissionComplete,
+  ] = useState(false);
+
+  const videoRef =
+    useRef<HTMLVideoElement | null>(
+      null
+    );
+
+  const canvasRef =
+    useRef<HTMLCanvasElement | null>(
+      null
+    );
+
+  const cameraStreamRef =
+    useRef<MediaStream | null>(
+      null
+    );
+
+  const stopCamera =
+    useCallback(() => {
+      cameraStreamRef.current
+        ?.getTracks()
+        .forEach((track) =>
+          track.stop()
+        );
+
+      cameraStreamRef.current =
+        null;
+
+      if (videoRef.current) {
+        videoRef.current.srcObject =
+          null;
+      }
+
+      setCameraOpen(false);
+    }, []);
+
+  const loadJobs =
+    useCallback(async () => {
       setLoading(true);
       setLoadError("");
 
@@ -215,11 +385,6 @@ export function Jobs() {
         });
 
       if (jobsError) {
-        console.error(
-          "Unable to load jobs:",
-          jobsError
-        );
-
         setLoadError(
           jobsError.message
         );
@@ -237,27 +402,24 @@ export function Jobs() {
         return;
       }
 
-      const storeIds = Array.from(
-        new Set(
-          rawJobs
-            .map(
-              (job) => job.store_id
-            )
-            .filter(
-              (
-                storeId
-              ): storeId is string =>
-                Boolean(storeId)
-            )
-        )
-      );
+      const storeIds =
+        Array.from(
+          new Set(
+            rawJobs
+              .map(
+                (job) =>
+                  job.store_id
+              )
+              .filter(Boolean)
+          )
+        );
 
-      let stores: RawStore[] = [];
+      let stores: RawStore[] =
+        [];
 
       if (storeIds.length > 0) {
         const {
           data: storesData,
-          error: storesError,
         } = await client
           .from("stores")
           .select(`
@@ -269,16 +431,9 @@ export function Jobs() {
           `)
           .in("id", storeIds);
 
-        if (storesError) {
-          console.error(
-            "Unable to load stores:",
-            storesError
-          );
-        } else {
-          stores =
-            (storesData ??
-              []) as RawStore[];
-        }
+        stores =
+          (storesData ??
+            []) as RawStore[];
       }
 
       const storesById =
@@ -324,7 +479,7 @@ export function Jobs() {
                 job.steps
               )
                 ? job.steps.length
-                : 0,
+                : 4,
             color:
               jobColors[
                 job.job_type
@@ -334,16 +489,15 @@ export function Jobs() {
 
       setJobs(normalizedJobs);
       setLoading(false);
-    },
-    []
-  );
+    }, []);
 
   const loadActiveReservation =
     useCallback(
       async (
         currentJobs: PolicaJob[]
       ) => {
-        const client = supabase();
+        const client =
+          supabase();
 
         const {
           data: { user },
@@ -351,12 +505,8 @@ export function Jobs() {
           await client.auth.getUser();
 
         if (!user) {
-          setActiveReservation(null);
           return;
         }
-
-        const now =
-          new Date().toISOString();
 
         const {
           data,
@@ -381,7 +531,7 @@ export function Jobs() {
           )
           .gt(
             "expires_at",
-            now
+            new Date().toISOString()
           )
           .order(
             "reserved_at",
@@ -392,17 +542,10 @@ export function Jobs() {
           .limit(1)
           .maybeSingle();
 
-        if (error) {
-          console.error(
-            "Unable to load active reservation:",
-            error
+        if (error || !data) {
+          setActiveReservation(
+            null
           );
-          return;
-        }
-
-        if (!data) {
-          setActiveReservation(null);
-          setCountdownSeconds(0);
           return;
         }
 
@@ -420,18 +563,6 @@ export function Jobs() {
           return;
         }
 
-        const secondsRemaining =
-          Math.max(
-            0,
-            Math.floor(
-              (new Date(
-                reservation.expires_at
-              ).getTime() -
-                Date.now()) /
-                1000
-            )
-          );
-
         setActiveReservation({
           id: reservation.id,
           jobId:
@@ -442,10 +573,6 @@ export function Jobs() {
             reservation.expires_at,
           job: matchingJob,
         });
-
-        setCountdownSeconds(
-          secondsRemaining
-        );
       },
       []
     );
@@ -470,31 +597,32 @@ export function Jobs() {
       return;
     }
 
-    const updateCountdown = () => {
-      const secondsRemaining =
-        Math.max(
-          0,
-          Math.floor(
-            (new Date(
-              activeReservation.expiresAt
-            ).getTime() -
-              Date.now()) /
-              1000
-          )
+    const updateCountdown =
+      () => {
+        const remaining =
+          Math.max(
+            0,
+            Math.floor(
+              (new Date(
+                activeReservation.expiresAt
+              ).getTime() -
+                Date.now()) /
+                1000
+            )
+          );
+
+        setCountdownSeconds(
+          remaining
         );
 
-      setCountdownSeconds(
-        secondsRemaining
-      );
-
-      if (
-        secondsRemaining <= 0
-      ) {
-        setActiveReservation(
-          null
-        );
-      }
-    };
+        if (remaining === 0) {
+          stopCamera();
+          setMissionOpen(false);
+          setActiveReservation(
+            null
+          );
+        }
+      };
 
     updateCountdown();
 
@@ -508,7 +636,25 @@ export function Jobs() {
       window.clearInterval(
         timer
       );
-  }, [activeReservation]);
+  }, [
+    activeReservation,
+    stopCamera,
+  ]);
+
+  useEffect(() => {
+    return () => {
+      stopCamera();
+
+      if (photoPreview) {
+        URL.revokeObjectURL(
+          photoPreview
+        );
+      }
+    };
+  }, [
+    photoPreview,
+    stopCamera,
+  ]);
 
   async function reserveJob(
     job: PolicaJob
@@ -517,21 +663,6 @@ export function Jobs() {
     setReservationError("");
 
     const client = supabase();
-
-    const {
-      data: { user },
-    } =
-      await client.auth.getUser();
-
-    if (!user) {
-      setReservationError(
-        "Please log in before reserving a job."
-      );
-      setReservationLoading(
-        false
-      );
-      return;
-    }
 
     const {
       data,
@@ -544,33 +675,27 @@ export function Jobs() {
     );
 
     if (error) {
-      console.error(
-        "Reservation failed:",
-        error
-      );
-
       setReservationError(
         getReservationMessage(
           error.message
         )
       );
-
       setReservationLoading(
         false
       );
       return;
     }
 
-    const reservationData =
+    const reservation =
       (Array.isArray(data)
         ? data[0]
         : data) as
         | RawReservation
         | null;
 
-    if (!reservationData) {
+    if (!reservation) {
       setReservationError(
-        "The reservation was not returned. Please refresh and try again."
+        "Reservation data was not returned."
       );
       setReservationLoading(
         false
@@ -578,34 +703,388 @@ export function Jobs() {
       return;
     }
 
-    const secondsRemaining =
-      Math.max(
-        0,
-        Math.floor(
-          (new Date(
-            reservationData.expires_at
-          ).getTime() -
-            Date.now()) /
-            1000
-        )
-      );
-
     setActiveReservation({
-      id: reservationData.id,
+      id: reservation.id,
       jobId:
-        reservationData.job_id,
+        reservation.job_id,
       reservedAt:
-        reservationData.reserved_at,
+        reservation.reserved_at,
       expiresAt:
-        reservationData.expires_at,
+        reservation.expires_at,
       job,
     });
 
-    setCountdownSeconds(
-      secondsRemaining
-    );
     setDetail(null);
     setReservationLoading(false);
+  }
+
+  function openMission() {
+    setCurrentStep(0);
+    setSubmissionError("");
+    setSubmissionComplete(false);
+    setMissionOpen(true);
+  }
+
+  function closeMission() {
+    stopCamera();
+    setMissionOpen(false);
+  }
+
+  async function openCamera() {
+    setCameraError("");
+
+    if (
+      !navigator.mediaDevices ||
+      !navigator.mediaDevices
+        .getUserMedia
+    ) {
+      setCameraError(
+        "Live camera is not available in this browser."
+      );
+      return;
+    }
+
+    try {
+      const stream =
+        await navigator.mediaDevices.getUserMedia(
+          {
+            video: {
+              facingMode: {
+                ideal:
+                  "environment",
+              },
+            },
+            audio: false,
+          }
+        );
+
+      cameraStreamRef.current =
+        stream;
+
+      setCameraOpen(true);
+
+      window.setTimeout(() => {
+        if (videoRef.current) {
+          videoRef.current.srcObject =
+            stream;
+
+          void videoRef.current.play();
+        }
+      }, 50);
+    } catch {
+      setCameraError(
+        "Camera permission was not granted. Enable camera access and try again."
+      );
+    }
+  }
+
+  function capturePhoto() {
+    const video =
+      videoRef.current;
+
+    const canvas =
+      canvasRef.current;
+
+    if (!video || !canvas) {
+      return;
+    }
+
+    const maxWidth = 1600;
+
+    const scale = Math.min(
+      1,
+      maxWidth /
+        video.videoWidth
+    );
+
+    canvas.width = Math.round(
+      video.videoWidth * scale
+    );
+
+    canvas.height = Math.round(
+      video.videoHeight * scale
+    );
+
+    const context =
+      canvas.getContext("2d");
+
+    if (!context) {
+      return;
+    }
+
+    context.drawImage(
+      video,
+      0,
+      0,
+      canvas.width,
+      canvas.height
+    );
+
+    canvas.toBlob(
+      (blob) => {
+        if (!blob) {
+          setCameraError(
+            "Photo capture failed. Please try again."
+          );
+          return;
+        }
+
+        if (photoPreview) {
+          URL.revokeObjectURL(
+            photoPreview
+          );
+        }
+
+        setPhotoBlob(blob);
+
+        setPhotoPreview(
+          URL.createObjectURL(blob)
+        );
+
+        stopCamera();
+      },
+      "image/jpeg",
+      0.8
+    );
+  }
+
+  function retakePhoto() {
+    if (photoPreview) {
+      URL.revokeObjectURL(
+        photoPreview
+      );
+    }
+
+    setPhotoBlob(null);
+    setPhotoPreview("");
+    void openCamera();
+  }
+
+  function captureLocation() {
+    setSubmissionError("");
+
+    if (!navigator.geolocation) {
+      setSubmissionError(
+        "Location services are not available."
+      );
+      return;
+    }
+
+    setLocationLoading(true);
+
+    navigator.geolocation.getCurrentPosition(
+      (result) => {
+        setPosition({
+          lat:
+            result.coords
+              .latitude,
+          lng:
+            result.coords
+              .longitude,
+          accuracy:
+            result.coords
+              .accuracy,
+          capturedAt:
+            new Date().toISOString(),
+        });
+
+        setLocationLoading(
+          false
+        );
+      },
+      () => {
+        setSubmissionError(
+          "Location permission was not granted. Enable location access and try again."
+        );
+
+        setLocationLoading(
+          false
+        );
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 15000,
+        maximumAge: 0,
+      }
+    );
+  }
+
+  function canContinue() {
+    if (currentStep === 0) {
+      return (
+        availability === "Yes" ||
+        availability === "No"
+      );
+    }
+
+    if (currentStep === 1) {
+      const amount =
+        Number(price);
+
+      return (
+        Number.isFinite(amount) &&
+        amount >= 0
+      );
+    }
+
+    if (currentStep === 2) {
+      return Boolean(photoBlob);
+    }
+
+    if (currentStep === 3) {
+      return (
+        observation.trim()
+          .length >= 10
+      );
+    }
+
+    return true;
+  }
+
+  function nextStep() {
+    if (!canContinue()) {
+      return;
+    }
+
+    setCurrentStep((step) =>
+      Math.min(step + 1, 4)
+    );
+  }
+
+  async function submitMission() {
+    if (
+      !activeReservation ||
+      !photoBlob ||
+      !position
+    ) {
+      setSubmissionError(
+        "Photo and GPS verification are required."
+      );
+      return;
+    }
+
+    setSubmissionLoading(true);
+    setSubmissionError("");
+
+    const client = supabase();
+
+    const {
+      data: { user },
+    } =
+      await client.auth.getUser();
+
+    if (!user) {
+      setSubmissionError(
+        "Your session expired. Please log in again."
+      );
+      setSubmissionLoading(
+        false
+      );
+      return;
+    }
+
+    const photoPath = `${
+      user.id
+    }/${
+      activeReservation.id
+    }/${crypto.randomUUID()}.jpg`;
+
+    const {
+      error: uploadError,
+    } = await client.storage
+      .from("job-evidence")
+      .upload(
+        photoPath,
+        photoBlob,
+        {
+          contentType:
+            "image/jpeg",
+          upsert: false,
+        }
+      );
+
+    if (uploadError) {
+      setSubmissionError(
+        `Photo upload failed: ${uploadError.message}`
+      );
+      setSubmissionLoading(
+        false
+      );
+      return;
+    }
+
+    const answers = {
+      availability,
+      price_eur:
+        Number(price),
+      observation:
+        observation.trim(),
+      photo_capture_method:
+        "live_camera",
+      camera_captured_at:
+        new Date().toISOString(),
+      gps_accuracy_m:
+        Math.round(
+          position.accuracy
+        ),
+    };
+
+    const {
+      error: submitError,
+    } = await client.rpc(
+      "submit_reserved_job",
+      {
+        p_reservation:
+          activeReservation.id,
+        p_answers: answers,
+        p_photo_path:
+          photoPath,
+        p_lat: position.lat,
+        p_lng: position.lng,
+        p_captured_at:
+          position.capturedAt,
+      }
+    );
+
+    if (submitError) {
+      await client.storage
+        .from("job-evidence")
+        .remove([photoPath]);
+
+      setSubmissionError(
+        getSubmissionMessage(
+          submitError.message
+        )
+      );
+
+      setSubmissionLoading(
+        false
+      );
+      return;
+    }
+
+    setSubmissionComplete(true);
+    setSubmissionLoading(false);
+    setActiveReservation(null);
+    setCountdownSeconds(0);
+
+    window.setTimeout(() => {
+      closeMission();
+      setAvailability("");
+      setPrice("");
+      setObservation("");
+      setPosition(null);
+      setPhotoBlob(null);
+
+      if (photoPreview) {
+        URL.revokeObjectURL(
+          photoPreview
+        );
+      }
+
+      setPhotoPreview("");
+      void loadJobs();
+    }, 1800);
   }
 
   const availableTypes =
@@ -650,16 +1129,13 @@ export function Jobs() {
               .join(" ")
               .toLowerCase();
 
-          const matchesSearch =
-            normalizedQuery
-              .length === 0 ||
-            searchableText.includes(
-              normalizedQuery
-            );
-
           return (
             matchesType &&
-            matchesSearch
+            (normalizedQuery ===
+              "" ||
+              searchableText.includes(
+                normalizedQuery
+              ))
           );
         }
       );
@@ -700,8 +1176,8 @@ export function Jobs() {
 
           <button
             type="button"
-            aria-label="Job filters"
             className="rounded-2xl bg-ink p-4 text-white"
+            aria-label="Filters"
           >
             <SlidersHorizontal
               size={19}
@@ -747,9 +1223,7 @@ export function Jobs() {
             <h2 className="text-2xl font-black">
               {loading
                 ? "Loading jobs"
-                : `${
-                    filteredJobs.length
-                  } ${
+                : `${filteredJobs.length} ${
                     filteredJobs.length ===
                     1
                       ? "job"
@@ -813,12 +1287,6 @@ export function Jobs() {
               <p className="font-black">
                 No matching jobs
               </p>
-
-              <p className="mt-2 text-sm text-ink/50">
-                No published jobs
-                are currently
-                available.
-              </p>
             </Card>
           )}
 
@@ -826,12 +1294,10 @@ export function Jobs() {
           {!loading &&
             !loadError &&
             filteredJobs.map(
-              (
-                job,
-                index
-              ) => (
+              (job, index) => (
                 <motion.button
                   type="button"
+                  key={job.id}
                   initial={{
                     opacity: 0,
                     y: 16,
@@ -842,10 +1308,8 @@ export function Jobs() {
                   }}
                   transition={{
                     delay:
-                      index *
-                      0.06,
+                      index * 0.06,
                   }}
-                  key={job.id}
                   onClick={() => {
                     setReservationError(
                       ""
@@ -854,7 +1318,7 @@ export function Jobs() {
                   }}
                   className="w-full text-left"
                 >
-                  <Card className="overflow-hidden p-4">
+                  <Card className="p-4">
                     <div className="flex items-start gap-4">
                       <div
                         className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl"
@@ -875,7 +1339,7 @@ export function Jobs() {
                       <div className="min-w-0 flex-1">
                         <div className="flex justify-between gap-3">
                           <div>
-                            <p className="text-xs font-bold uppercase tracking-wide text-ink/45">
+                            <p className="text-xs font-bold uppercase text-ink/45">
                               {
                                 job.chain
                               }{" "}
@@ -883,51 +1347,35 @@ export function Jobs() {
                               {job.type}
                             </p>
 
-                            <h3 className="mt-1 font-black leading-tight">
+                            <h3 className="mt-1 font-black">
                               {
                                 job.title
                               }
                             </h3>
                           </div>
 
-                          <div className="text-right">
-                            <p className="text-xl font-black">
-                              €
-                              {job.reward.toFixed(
-                                2
-                              )}
-                            </p>
-
-                            {job.refund >
-                              0 && (
-                              <p className="text-[10px] font-bold text-coral">
-                                +€
-                                {job.refund.toFixed(
-                                  2
-                                )}{" "}
-                                refund
-                              </p>
+                          <p className="text-xl font-black">
+                            €
+                            {job.reward.toFixed(
+                              2
                             )}
-                          </div>
+                          </p>
                         </div>
 
                         <div className="mt-3 flex items-start gap-3 text-xs font-semibold text-ink/50">
-                          <span className="flex min-w-0 items-start gap-1">
+                          <span className="flex min-w-0 gap-1">
                             <MapPin
-                              className="mt-0.5 shrink-0"
+                              className="shrink-0"
                               size={
                                 13
                               }
                             />
-
-                            <span>
-                              {
-                                job.address
-                              }
-                            </span>
+                            {
+                              job.address
+                            }
                           </span>
 
-                          <span className="flex shrink-0 items-center gap-1">
+                          <span className="flex shrink-0 gap-1">
                             <Clock
                               size={
                                 13
@@ -951,8 +1399,8 @@ export function Jobs() {
       {activeReservation && (
         <div className="fixed bottom-[77px] left-1/2 z-40 w-[calc(100%-24px)] max-w-[408px] -translate-x-1/2">
           <Card className="bg-ink p-4 text-white">
-            <div className="flex items-center justify-between gap-3">
-              <div className="min-w-0">
+            <div className="flex items-center justify-between">
+              <div>
                 <p className="text-[10px] font-bold uppercase tracking-widest text-mint">
                   Active job ·{" "}
                   {formatCountdown(
@@ -960,7 +1408,7 @@ export function Jobs() {
                   )}
                 </p>
 
-                <p className="truncate font-bold">
+                <p className="font-bold">
                   {
                     activeReservation
                       .job.chain
@@ -973,17 +1421,15 @@ export function Jobs() {
                 </p>
               </div>
 
-              <CheckCircle2 className="shrink-0 text-mint" />
+              <CheckCircle2 className="text-mint" />
             </div>
 
             <Button
               type="button"
               className="mt-3 w-full bg-mint py-2.5 text-ink"
-              onClick={() => {
-                window.alert(
-                  "The task form is the next Polica feature."
-                );
-              }}
+              onClick={
+                openMission
+              }
             >
               <Play
                 className="mr-2 inline"
@@ -1008,9 +1454,6 @@ export function Jobs() {
             exit={{
               opacity: 0,
             }}
-            onClick={() =>
-              setDetail(null)
-            }
           >
             <motion.div
               initial={{
@@ -1022,18 +1465,10 @@ export function Jobs() {
               exit={{
                 y: "100%",
               }}
-              transition={{
-                type: "spring",
-                damping: 28,
-              }}
-              onClick={(event) =>
-                event.stopPropagation()
-              }
               className="absolute inset-x-0 bottom-0 mx-auto max-w-md rounded-t-[36px] bg-white p-6"
             >
               <button
                 type="button"
-                aria-label="Close job details"
                 onClick={() =>
                   setDetail(null)
                 }
@@ -1042,7 +1477,7 @@ export function Jobs() {
                 <X size={18} />
               </button>
 
-              <Chip className="bg-mint/20 text-ink">
+              <Chip className="bg-mint/20">
                 {detail.type}
               </Chip>
 
@@ -1050,86 +1485,47 @@ export function Jobs() {
                 {detail.title}
               </h2>
 
-              <p className="mt-2 flex items-start gap-2 text-sm text-ink/55">
-                <MapPin
-                  className="mt-0.5 shrink-0"
-                  size={16}
-                />
-
+              <p className="mt-2 text-sm text-ink/55">
                 {detail.chain} ·{" "}
                 {detail.address}
               </p>
 
               <div className="my-6 grid grid-cols-3 gap-2">
-                <div className="rounded-2xl bg-cream p-3 text-center">
-                  <p className="font-black">
+                <Card className="p-3 text-center shadow-none">
+                  <b>
                     €
                     {detail.reward.toFixed(
                       2
                     )}
+                  </b>
+                  <p className="text-[10px] text-ink/45">
+                    REWARD
                   </p>
+                </Card>
 
-                  <p className="text-[10px] font-bold uppercase text-ink/45">
-                    Reward
-                  </p>
-                </div>
-
-                <div className="rounded-2xl bg-cream p-3 text-center">
-                  <p className="font-black">
+                <Card className="p-3 text-center shadow-none">
+                  <b>
                     {detail.minutes}{" "}
                     min
+                  </b>
+                  <p className="text-[10px] text-ink/45">
+                    TIME
                   </p>
+                </Card>
 
-                  <p className="text-[10px] font-bold uppercase text-ink/45">
-                    Est. time
+                <Card className="p-3 text-center shadow-none">
+                  <b>4</b>
+                  <p className="text-[10px] text-ink/45">
+                    STEPS
                   </p>
-                </div>
-
-                <div className="rounded-2xl bg-cream p-3 text-center">
-                  <p className="font-black">
-                    {
-                      detail.stepsCount
-                    }
-                  </p>
-
-                  <p className="text-[10px] font-bold uppercase text-ink/45">
-                    Steps
-                  </p>
-                </div>
-              </div>
-
-              <div className="rounded-2xl border border-mint/30 bg-mint/10 p-4">
-                <p className="flex items-center gap-2 font-bold">
-                  <Camera
-                    size={18}
-                  />
-                  What you will do
-                </p>
-
-                <p className="mt-2 text-sm leading-relaxed text-ink/65">
-                  Visit the store
-                  and complete{" "}
-                  {
-                    detail.stepsCount
-                  }{" "}
-                  guided task steps
-                  while at the
-                  assigned location.
-                </p>
+                </Card>
               </div>
 
               {reservationError && (
-                <div className="mt-4 flex items-start gap-2 rounded-2xl bg-coral/10 p-4 text-sm text-coral">
-                  <AlertCircle
-                    className="mt-0.5 shrink-0"
-                    size={18}
-                  />
-
-                  <p>
-                    {
-                      reservationError
-                    }
-                  </p>
+                <div className="rounded-2xl bg-coral/10 p-4 text-sm text-coral">
+                  {
+                    reservationError
+                  }
                 </div>
               )}
 
@@ -1151,18 +1547,502 @@ export function Jobs() {
                 {reservationLoading
                   ? "Reserving…"
                   : activeReservation
-                    ? "You already have an active job"
+                    ? "Active job already reserved"
                     : "Reserve for 60 minutes"}
               </Button>
-
-              <p className="mt-3 text-center text-xs text-ink/40">
-                One active job at
-                a time · GPS will
-                be required
-              </p>
             </motion.div>
           </motion.div>
         )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {missionOpen &&
+          activeReservation && (
+            <motion.div
+              className="fixed inset-0 z-[80] overflow-y-auto bg-cream"
+              initial={{
+                opacity: 0,
+              }}
+              animate={{
+                opacity: 1,
+              }}
+              exit={{
+                opacity: 0,
+              }}
+            >
+              <div className="mx-auto min-h-screen max-w-md px-5 pb-10 pt-5">
+                <div className="flex items-center justify-between">
+                  <button
+                    type="button"
+                    onClick={
+                      closeMission
+                    }
+                    className="rounded-full bg-white p-3"
+                  >
+                    <X size={20} />
+                  </button>
+
+                  <div className="text-center">
+                    <p className="text-xs font-bold text-ink/45">
+                      ACTIVE MISSION
+                    </p>
+
+                    <p className="font-black">
+                      {formatCountdown(
+                        countdownSeconds
+                      )}
+                    </p>
+                  </div>
+
+                  <div className="w-11" />
+                </div>
+
+                <div className="mt-5 h-2 overflow-hidden rounded-full bg-white">
+                  <div
+                    className="h-full rounded-full bg-mint transition-all"
+                    style={{
+                      width: `${
+                        ((currentStep +
+                          1) /
+                          5) *
+                        100
+                      }%`,
+                    }}
+                  />
+                </div>
+
+                <p className="mt-3 text-xs font-bold text-ink/45">
+                  STEP{" "}
+                  {currentStep + 1}{" "}
+                  OF 5
+                </p>
+
+                {submissionComplete ? (
+                  <Card className="mt-8 p-8 text-center">
+                    <CheckCircle2
+                      className="mx-auto text-mint"
+                      size={54}
+                    />
+
+                    <h2 className="mt-4 text-3xl font-black">
+                      Mission
+                      submitted
+                    </h2>
+
+                    <p className="mt-3 text-sm text-ink/55">
+                      The submission
+                      has been sent for
+                      review.
+                    </p>
+                  </Card>
+                ) : (
+                  <>
+                    {currentStep ===
+                      0 && (
+                      <Card className="mt-5 p-6">
+                        <h2 className="text-2xl font-black">
+                          Is the cold
+                          drinks display
+                          available?
+                        </h2>
+
+                        <div className="mt-6 grid grid-cols-2 gap-3">
+                          {[
+                            "Yes",
+                            "No",
+                          ].map(
+                            (
+                              option
+                            ) => (
+                              <button
+                                type="button"
+                                key={
+                                  option
+                                }
+                                onClick={() =>
+                                  setAvailability(
+                                    option
+                                  )
+                                }
+                                className={`rounded-2xl border p-5 font-black ${
+                                  availability ===
+                                  option
+                                    ? "border-mint bg-mint/20"
+                                    : "border-black/10 bg-white"
+                                }`}
+                              >
+                                {
+                                  option
+                                }
+                              </button>
+                            )
+                          )}
+                        </div>
+                      </Card>
+                    )}
+
+                    {currentStep ===
+                      1 && (
+                      <Card className="mt-5 p-6">
+                        <h2 className="text-2xl font-black">
+                          Enter the
+                          displayed price
+                        </h2>
+
+                        <label className="mt-6 flex items-center rounded-2xl border border-black/10 bg-white px-4">
+                          <span className="text-2xl font-black">
+                            €
+                          </span>
+
+                          <input
+                            type="number"
+                            inputMode="decimal"
+                            min="0"
+                            step="0.01"
+                            value={price}
+                            onChange={(
+                              event
+                            ) =>
+                              setPrice(
+                                event
+                                  .target
+                                  .value
+                              )
+                            }
+                            placeholder="0.00"
+                            className="w-full bg-transparent px-3 py-5 text-3xl font-black outline-none"
+                          />
+                        </label>
+                      </Card>
+                    )}
+
+                    {currentStep ===
+                      2 && (
+                      <Card className="mt-5 p-5">
+                        <h2 className="text-2xl font-black">
+                          Take a live
+                          display photo
+                        </h2>
+
+                        <p className="mt-2 text-sm text-ink/55">
+                          Use the rear
+                          camera and
+                          include the
+                          full display.
+                        </p>
+
+                        {!cameraOpen &&
+                          !photoPreview && (
+                            <Button
+                              type="button"
+                              className="mt-6 w-full"
+                              onClick={() =>
+                                void openCamera()
+                              }
+                            >
+                              <Camera
+                                className="mr-2 inline"
+                                size={
+                                  18
+                                }
+                              />
+                              Open live
+                              camera
+                            </Button>
+                          )}
+
+                        {cameraOpen && (
+                          <div className="mt-5 overflow-hidden rounded-2xl bg-black">
+                            <video
+                              ref={
+                                videoRef
+                              }
+                              autoPlay
+                              playsInline
+                              muted
+                              className="aspect-[3/4] w-full object-cover"
+                            />
+
+                            <div className="bg-black p-4">
+                              <Button
+                                type="button"
+                                className="w-full bg-white text-ink"
+                                onClick={
+                                  capturePhoto
+                                }
+                              >
+                                <Camera
+                                  className="mr-2 inline"
+                                  size={
+                                    18
+                                  }
+                                />
+                                Take photo
+                              </Button>
+                            </div>
+                          </div>
+                        )}
+
+                        {photoPreview && (
+                          <div className="mt-5">
+                            <img
+                              src={
+                                photoPreview
+                              }
+                              alt="Captured mission evidence"
+                              className="aspect-[3/4] w-full rounded-2xl object-cover"
+                            />
+
+                            <Button
+                              type="button"
+                              className="mt-3 w-full bg-white text-ink shadow-sm"
+                              onClick={
+                                retakePhoto
+                              }
+                            >
+                              <RotateCcw
+                                className="mr-2 inline"
+                                size={
+                                  18
+                                }
+                              />
+                              Retake photo
+                            </Button>
+                          </div>
+                        )}
+
+                        {cameraError && (
+                          <div className="mt-4 flex gap-2 rounded-2xl bg-coral/10 p-4 text-sm text-coral">
+                            <AlertCircle
+                              size={18}
+                            />
+                            {
+                              cameraError
+                            }
+                          </div>
+                        )}
+
+                        <canvas
+                          ref={
+                            canvasRef
+                          }
+                          className="hidden"
+                        />
+                      </Card>
+                    )}
+
+                    {currentStep ===
+                      3 && (
+                      <Card className="mt-5 p-6">
+                        <h2 className="text-2xl font-black">
+                          Describe any
+                          visibility or
+                          availability
+                          issue
+                        </h2>
+
+                        <textarea
+                          value={
+                            observation
+                          }
+                          onChange={(
+                            event
+                          ) =>
+                            setObservation(
+                              event
+                                .target
+                                .value
+                            )
+                          }
+                          rows={6}
+                          placeholder="Minimum 10 characters"
+                          className="mt-6 w-full resize-none rounded-2xl border border-black/10 bg-white p-4 outline-none focus:border-mint"
+                        />
+
+                        <p className="mt-2 text-right text-xs text-ink/45">
+                          {
+                            observation
+                              .trim()
+                              .length
+                          }{" "}
+                          characters
+                        </p>
+                      </Card>
+                    )}
+
+                    {currentStep ===
+                      4 && (
+                      <Card className="mt-5 p-6">
+                        <h2 className="text-2xl font-black">
+                          Verify and
+                          submit
+                        </h2>
+
+                        <div className="mt-5 space-y-3">
+                          <div className="rounded-2xl bg-cream p-4">
+                            <p className="text-xs font-bold text-ink/45">
+                              AVAILABILITY
+                            </p>
+                            <p className="font-black">
+                              {
+                                availability
+                              }
+                            </p>
+                          </div>
+
+                          <div className="rounded-2xl bg-cream p-4">
+                            <p className="text-xs font-bold text-ink/45">
+                              PRICE
+                            </p>
+                            <p className="font-black">
+                              €
+                              {Number(
+                                price
+                              ).toFixed(
+                                2
+                              )}
+                            </p>
+                          </div>
+
+                          <div className="rounded-2xl bg-cream p-4">
+                            <p className="text-xs font-bold text-ink/45">
+                              PHOTO
+                            </p>
+                            <p className="font-black">
+                              Live photo
+                              captured
+                            </p>
+                          </div>
+
+                          <div className="rounded-2xl bg-cream p-4">
+                            <p className="text-xs font-bold text-ink/45">
+                              LOCATION
+                            </p>
+
+                            {position ? (
+                              <div>
+                                <p className="font-black text-mint">
+                                  GPS
+                                  captured
+                                </p>
+
+                                <p className="mt-1 text-xs text-ink/45">
+                                  Accuracy:{" "}
+                                  {Math.round(
+                                    position.accuracy
+                                  )}{" "}
+                                  m
+                                </p>
+                              </div>
+                            ) : (
+                              <Button
+                                type="button"
+                                disabled={
+                                  locationLoading
+                                }
+                                className="mt-2 w-full"
+                                onClick={
+                                  captureLocation
+                                }
+                              >
+                                <Navigation
+                                  className="mr-2 inline"
+                                  size={
+                                    18
+                                  }
+                                />
+                                {locationLoading
+                                  ? "Capturing location…"
+                                  : "Capture GPS"}
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+
+                        {submissionError && (
+                          <div className="mt-4 flex gap-2 rounded-2xl bg-coral/10 p-4 text-sm text-coral">
+                            <AlertCircle
+                              className="shrink-0"
+                              size={18}
+                            />
+                            {
+                              submissionError
+                            }
+                          </div>
+                        )}
+
+                        <Button
+                          type="button"
+                          disabled={
+                            !position ||
+                            submissionLoading
+                          }
+                          className="mt-6 w-full bg-coral"
+                          onClick={() =>
+                            void submitMission()
+                          }
+                        >
+                          <Send
+                            className="mr-2 inline"
+                            size={18}
+                          />
+
+                          {submissionLoading
+                            ? "Submitting…"
+                            : "Submit mission"}
+                        </Button>
+                      </Card>
+                    )}
+
+                    <div className="mt-5 flex gap-3">
+                      {currentStep >
+                        0 && (
+                        <Button
+                          type="button"
+                          className="flex-1 bg-white text-ink shadow-sm"
+                          onClick={() =>
+                            setCurrentStep(
+                              (
+                                step
+                              ) =>
+                                step -
+                                1
+                            )
+                          }
+                        >
+                          <ArrowLeft
+                            className="mr-2 inline"
+                            size={17}
+                          />
+                          Back
+                        </Button>
+                      )}
+
+                      {currentStep <
+                        4 && (
+                        <Button
+                          type="button"
+                          disabled={
+                            !canContinue()
+                          }
+                          className="flex-1"
+                          onClick={
+                            nextStep
+                          }
+                        >
+                          Next
+                          <ArrowRight
+                            className="ml-2 inline"
+                            size={17}
+                          />
+                        </Button>
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
+            </motion.div>
+          )}
       </AnimatePresence>
     </>
   );
