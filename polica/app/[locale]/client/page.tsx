@@ -1,1 +1,67 @@
-import {BarChart3,Plus,Download,Images,CheckCircle2} from 'lucide-react';import {Button,Card,Chip} from '@/components/ui';export default function Client(){return <section className="px-5 py-8"><div className="flex items-end justify-between"><div><p className="text-sm font-bold text-ink/45">Retailer workspace</p><h1 className="text-4xl font-black">Campaigns</h1></div><Button className="p-3"><Plus/></Button></div><div className="mt-6 grid grid-cols-2 gap-3">{[['127','Submissions'],['91%','Approval rate'],['€1,840','Spend'],['24','Stores']].map(x=><Card className="p-4" key={x[1]}><p className="text-2xl font-black">{x[0]}</p><p className="text-xs font-bold text-ink/45">{x[1]}</p></Card>)}</div><h2 className="mb-3 mt-8 text-xl font-black">Active jobs</h2>{['Summer display audit','New product visibility','Service mystery shop'].map((x,i)=><Card className="mb-3 p-4" key={x}><div className="flex justify-between"><div><Chip>{i===0?'Audit':i===1?'Eye spy':'Mystery shop'}</Chip><h3 className="mt-2 font-black">{x}</h3></div><p className="font-black">{[68,41,18][i]}</p></div><div className="mt-3 h-2 rounded-full bg-cream"><div className="h-full rounded-full bg-mint" style={{width:`${[76,52,30][i]}%`}}/></div></Card>)}<div className="mt-6 grid grid-cols-3 gap-2"><Button className="bg-white p-3 text-ink shadow-sm"><BarChart3/></Button><Button className="bg-white p-3 text-ink shadow-sm"><Images/></Button><Button className="bg-white p-3 text-ink shadow-sm"><Download/></Button></div></section>}
+import { redirect } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
+import CreateJob from "@/components/create-job";
+
+export default async function ClientPage({
+  params,
+}: {
+  params: {
+    locale: string;
+  };
+}) {
+  const supabase = createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect(
+      `/${params.locale}/auth/login`
+    );
+  }
+
+  const {
+    data: profile,
+    error: profileError,
+  } = await supabase
+    .from("profiles")
+    .select("role, first_name")
+    .eq("id", user.id)
+    .single();
+
+  if (profileError || !profile) {
+    redirect(
+      `/${params.locale}/jobs`
+    );
+  }
+
+  const allowed =
+    profile.role === "admin" ||
+    profile.role === "client";
+
+  if (!allowed) {
+    redirect(
+      `/${params.locale}/jobs`
+    );
+  }
+
+  return (
+    <section className="px-5 py-8">
+      <p className="text-sm font-bold text-coral">
+        Client workspace
+      </p>
+
+      <h1 className="text-4xl font-black">
+        Create mission
+      </h1>
+
+      <p className="mt-2 text-sm leading-relaxed text-ink/55">
+        Publish a new in-store mission directly to the
+        Polica agent network.
+      </p>
+
+      <CreateJob />
+    </section>
+  );
+}
