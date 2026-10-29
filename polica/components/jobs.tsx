@@ -91,29 +91,27 @@ export function Jobs() {
 
     const client = supabase();
 
-    const { data, error } = await client
-      .from("jobs")
-      .select(`
-        id,
-        title,
-        job_type,
-        reward_cents,
-        refund_cents,
-        estimated_minutes,
-        starts_at,
-        ends_at,
-        steps,
-        stores (
-          chain,
-          address,
-          lat,
-          lng
-        )
-      `)
-      .eq("published", true)
-      .lte("starts_at", new Date().toISOString())
-      .gte("ends_at", new Date().toISOString())
-      .order("reward_cents", { ascending: false });
+const { data, error } = await client
+  .from("jobs")
+  .select(`
+    id,
+    title,
+    job_type,
+    reward_cents,
+    refund_cents,
+    estimated_minutes,
+    starts_at,
+    ends_at,
+    steps,
+    stores (
+      chain,
+      address,
+      lat,
+      lng
+    )
+  `)
+  .eq("published", true)
+  .order("reward_cents", { ascending: false });
 
     if (error) {
       console.error("Unable to load jobs:", error);
