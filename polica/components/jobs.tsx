@@ -88,6 +88,7 @@ type PolicaJob = {
   stepsCount: number;
   steps: MissionStep[];
   color: string;
+  distanceFromUser: number | null;
 };
 
 type ActiveReservation = {
@@ -208,6 +209,19 @@ function getSubmissionMessage(
   return "The mission could not be submitted. Please try again.";
 }
 
+function distanceMeters(lat1: number, lng1: number, lat2: number, lng2: number) {
+  const earthRadius = 6371000;
+  const toRadians = Math.PI / 180;
+  const dLat = (lat2 - lat1) * toRadians;
+  const dLng = (lng2 - lng1) * toRadians;
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1 * toRadians) *
+      Math.cos(lat2 * toRadians) *
+      Math.sin(dLng / 2) ** 2;
+  return 2 * earthRadius * Math.asin(Math.sqrt(a));
+}
+
 export function Jobs() {
   const [jobs, setJobs] =
     useState<PolicaJob[]>([]);
@@ -219,6 +233,13 @@ export function Jobs() {
     selectedType,
     setSelectedType,
   ] = useState("All jobs");
+
+  const [sortBy, setSortBy] = useState<"distance" | "reward">("reward");
+  const [retailAccount, setRetailAccount] = useState("All retailers");
+  const [maxDistanceKm, setMaxDistanceKm] = useState<number | null>(null);
+  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [locatingUser, setLocatingUser] = useState(false);
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   const [detail, setDetail] =
     useState<PolicaJob | null>(
@@ -499,6 +520,7 @@ export function Jobs() {
               jobColors[
                 job.job_type
               ] || "#1fd49a",
+            distanceFromUser: null,
           };
         });
 
@@ -1119,46 +1141,61 @@ export function Jobs() {
       ];
     }, [jobs]);
 
-  const filteredJobs =
-    useMemo(() => {
-      const normalizedQuery =
-        query
-          .trim()
-          .toLowerCase();
+  const retailAccounts = useMemo(() => {
+    return ["All retailers", ...Array.from(new Set(jobs.map((job) => job.chain))).sort()];
+  }, [jobs]);
 
-      return jobs.filter(
-        (job) => {
-          const matchesType =
-            selectedType ===
-              "All jobs" ||
-            job.type ===
-              selectedType;
+  function useMyLocationForJobs() {
+    if (!navigator.geolocation) {
+      setLoadError("Location services are not available on this device.");
+      return;
+    }
+    setLocatingUser(true);
+    navigator.geolocation.getCurrentPosition(
+      (result) => {
+        setUserLocation({ lat: result.coords.latitude, lng: result.coords.longitude });
+        setLocatingUser(false);
+        setSortBy("distance");
+      },
+      () => {
+        setLoadError("Location permission was not granted.");
+        setLocatingUser(false);
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 }
+    );
+  }
 
-          const searchableText =
-            [
-              job.title,
-              job.chain,
-              job.type,
-              job.address,
-            ]
-              .join(" ")
-              .toLowerCase();
+  const filteredJobs = useMemo(() => {
+    const normalizedQuery = query.trim().toLowerCase();
 
-          return (
-            matchesType &&
-            (normalizedQuery ===
-              "" ||
-              searchableText.includes(
-                normalizedQuery
-              ))
-          );
+    return jobs
+      .map((job) => ({
+        ...job,
+        distanceFromUser: userLocation
+          ? distanceMeters(userLocation.lat, userLocation.lng, job.lat, job.lng)
+          : null,
+      }))
+      .filter((job) => {
+        const matchesType = selectedType === "All jobs" || job.type === selectedType;
+        const matchesRetailer = retailAccount === "All retailers" || job.chain === retailAccount;
+        const matchesDistance =
+          maxDistanceKm === null ||
+          job.distanceFromUser === null ||
+          job.distanceFromUser <= maxDistanceKm * 1000;
+        const searchableText = [job.title, job.chain, job.type, job.address].join(" ").toLowerCase();
+        const matchesSearch = normalizedQuery === "" || searchableText.includes(normalizedQuery);
+        return matchesType && matchesRetailer && matchesDistance && matchesSearch;
+      })
+      .sort((a, b) => {
+        if (sortBy === "distance") {
+          if (a.distanceFromUser === null && b.distanceFromUser === null) return 0;
+          if (a.distanceFromUser === null) return 1;
+          if (b.distanceFromUser === null) return -1;
+          return a.distanceFromUser - b.distanceFromUser;
         }
-      );
-    }, [
-      jobs,
-      query,
-      selectedType,
-    ]);
+        return b.reward - a.reward;
+      });
+  }, [jobs, query, selectedType, retailAccount, maxDistanceKm, sortBy, userLocation]);
 
   const missionRunnerReservation: MissionRunnerReservation | null =
     activeReservation
@@ -1206,6 +1243,7 @@ export function Jobs() {
 
           <button
             type="button"
+            onClick={() => setFiltersOpen((value) => !value)}
             className="rounded-2xl bg-ink p-4 text-white"
             aria-label="Filters"
           >
@@ -1214,6 +1252,51 @@ export function Jobs() {
             />
           </button>
         </div>
+
+        {filtersOpen && (
+          <Card className="mt-4 p-4">
+            <div className="flex items-center justify-between">
+              <h3 className="font-black">Find what suits you</h3>
+              <button type="button" className="text-xs font-bold text-ink/45" onClick={() => {
+                setSortBy("reward");
+                setRetailAccount("All retailers");
+                setMaxDistanceKm(null);
+              }}>Reset</button>
+            </div>
+
+            <label className="mt-4 block">
+              <span className="text-xs font-bold uppercase text-ink/40">Retail account</span>
+              <select value={retailAccount} onChange={(event) => setRetailAccount(event.target.value)} className="mt-2 w-full rounded-2xl border border-black/10 bg-white px-4 py-3 outline-none">
+                {retailAccounts.map((account) => <option key={account}>{account}</option>)}
+              </select>
+            </label>
+
+            <div className="mt-4">
+              <span className="text-xs font-bold uppercase text-ink/40">Distance from me</span>
+              <div className="mt-2 flex flex-wrap gap-2">
+                {[1, 3, 5, 10].map((km) => (
+                  <button type="button" key={km} onClick={() => { setMaxDistanceKm(km); if (!userLocation) useMyLocationForJobs(); }} className={`rounded-full px-3 py-2 text-xs font-bold ${maxDistanceKm === km ? "bg-ink text-white" : "bg-cream"}`}>Within {km} km</button>
+                ))}
+                <button type="button" onClick={() => setMaxDistanceKm(null)} className={`rounded-full px-3 py-2 text-xs font-bold ${maxDistanceKm === null ? "bg-ink text-white" : "bg-cream"}`}>Any distance</button>
+              </div>
+              <Button type="button" className="mt-3 w-full bg-white text-ink shadow-sm" disabled={locatingUser} onClick={useMyLocationForJobs}>
+                {locatingUser ? "Finding you…" : userLocation ? "Location ready ✓" : "Use my location"}
+              </Button>
+            </div>
+
+            <div className="mt-4">
+              <span className="text-xs font-bold uppercase text-ink/40">Sort by</span>
+              <div className="mt-2 grid grid-cols-2 gap-2">
+                {[
+                  ["distance", "Nearest"],
+                  ["reward", "Highest €"],
+                ].map(([value, label]) => (
+                  <button type="button" key={value} onClick={() => { setSortBy(value as "distance" | "reward"); if (value === "distance" && !userLocation) useMyLocationForJobs(); }} className={`rounded-2xl px-3 py-3 text-xs font-bold ${sortBy === value ? "bg-mint text-ink" : "bg-cream"}`}>{label}</button>
+                ))}
+              </div>
+            </div>
+          </Card>
+        )}
 
         <div className="mt-4 flex gap-2 overflow-x-auto pb-1">
           {availableTypes.map(
@@ -1423,6 +1506,11 @@ export function Jobs() {
                             }{" "}
                             min
                           </span>
+                          {job.distanceFromUser !== null && (
+                            <span className="flex shrink-0 items-center gap-1 font-black text-ink/55">
+                              {(job.distanceFromUser / 1000).toFixed(job.distanceFromUser < 1000 ? 1 : 1)} km
+                            </span>
+                          )}
                         </div>
                       </div>
                     </div>
