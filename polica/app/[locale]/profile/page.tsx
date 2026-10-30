@@ -103,7 +103,7 @@ export default async function ProfilePage({ params }: { params: { locale: string
               <p className="text-xs text-ink/45">{regularStores.length} saved</p>
             </div>
           </div>
-          <Link href={`/${params.locale}/onboarding`} className="rounded-full bg-cream px-3 py-2 text-xs font-black">Manage</Link>
+          <Link href={`/${params.locale}/profile/stores`} className="rounded-full bg-cream px-3 py-2 text-xs font-black">Manage</Link>
         </div>
 
         {regularStores.length > 0 && (
