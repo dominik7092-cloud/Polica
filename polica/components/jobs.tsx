@@ -1214,24 +1214,16 @@ export function Jobs() {
 
   return (
     <>
-      <section className="px-5 pb-5 pt-8">
-        <p className="text-sm font-semibold text-ink/50">
-          Easy ways to earn
-        </p>
+      <section className="px-5 pb-5 pt-5">
+        <h1 className="text-3xl font-black">Earn</h1>
 
-        <h1 className="mt-1 text-4xl font-black leading-[1.05]">
-          Earn while you're already out.
-          <br />
-          A few extra minutes during your usual shopping.
-        </h1>
-
-        <div className="mt-6 flex gap-2">
+        <div className="mt-4 flex gap-2">
           <label className="flex flex-1 items-center gap-2 rounded-2xl bg-white px-4 shadow-sm">
             <Search size={18} />
 
             <input
               className="w-full bg-transparent py-3.5 outline-none"
-              placeholder="Search jobs or stores"
+              placeholder="Search shops or checks"
               value={query}
               onChange={(event) =>
                 setQuery(
