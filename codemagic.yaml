@@ -18,7 +18,7 @@ workflows:
         script: |
           cd polica
           if [ ! -d "ios" ]; then
-            npx cap add ios
+            npx cap add ios --packagemanager SPM
           fi
 
       - name: Sync Capacitor
@@ -26,16 +26,11 @@ workflows:
           cd polica
           npx cap sync ios
 
-      - name: Install CocoaPods
-        script: |
-          cd polica/ios/App
-          pod install
-
       - name: Build Polica for iPhone Simulator
         script: |
           cd polica/ios/App
           xcodebuild \
-            -workspace App.xcworkspace \
+            -project App.xcodeproj \
             -scheme App \
             -configuration Debug \
             -sdk iphonesimulator \
