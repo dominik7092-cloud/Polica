@@ -216,7 +216,7 @@ export function MissionRunner({
 
   async function submit() {
     if (!position) {
-      setError("GPS verification is required.");
+      setError("Location check is required to finish.");
       return;
     }
     const requiredPhoto = steps.some((step) => step.type === "photo" && step.required);
@@ -280,6 +280,12 @@ export function MissionRunner({
     setSubmitting(false);
     window.setTimeout(onSubmitted, 1200);
   }
+
+  useEffect(() => {
+    if (reviewStep && !position && !locationLoading && !complete) {
+      captureLocation();
+    }
+  }, [reviewStep, position, locationLoading, complete]);
 
   function renderStep(step: MissionStep) {
     if (step.type === "single_choice") {
@@ -411,7 +417,7 @@ export function MissionRunner({
             <X size={20} />
           </button>
           <div className="text-center">
-            <p className="text-xs font-bold text-ink/45">ACTIVE MISSION</p>
+            <p className="text-xs font-bold text-ink/45">QUICK CHECK</p>
             <p className="font-black">{formatCountdown(countdownSeconds)}</p>
           </div>
           <div className="w-11" />
@@ -425,18 +431,18 @@ export function MissionRunner({
         </div>
 
         <p className="mt-3 text-xs font-bold text-ink/45">
-          {reviewStep ? "REVIEW & SUBMIT" : `STEP ${stepIndex + 1} OF ${steps.length}`}
+          {reviewStep ? "ALMOST DONE" : `STEP ${stepIndex + 1} OF ${steps.length}`}
         </p>
 
         {complete ? (
           <Card className="mt-8 p-8 text-center">
             <CheckCircle2 className="mx-auto text-mint" size={54} />
-            <h2 className="mt-4 text-3xl font-black">Mission submitted</h2>
-            <p className="mt-3 text-sm text-ink/55">The submission has been sent for review.</p>
+            <h2 className="mt-4 text-3xl font-black">Done ✓</h2>
+            <p className="mt-3 text-sm text-ink/55">Nice. Your check is finished and has been sent for review.</p>
           </Card>
         ) : reviewStep ? (
           <Card className="mt-5 p-6">
-            <h2 className="text-2xl font-black">Verify and submit</h2>
+            <h2 className="text-2xl font-black">One last check</h2>
             <div className="mt-5 space-y-3">
               {steps.map((step) => (
                 <div key={step.id} className="rounded-2xl bg-cream p-4">
@@ -450,13 +456,13 @@ export function MissionRunner({
                 <p className="text-xs font-bold text-ink/45">LOCATION</p>
                 {position ? (
                   <div>
-                    <p className="font-black text-mint">GPS captured</p>
+                    <p className="font-black text-mint">Location checked</p>
                     <p className="mt-1 text-xs text-ink/45">Accuracy: {Math.round(position.accuracy)} m</p>
                   </div>
                 ) : (
                   <Button type="button" disabled={locationLoading} className="mt-2 w-full" onClick={captureLocation}>
                     <Navigation className="mr-2 inline" size={18} />
-                    {locationLoading ? "Capturing location…" : "Capture GPS"}
+                    {locationLoading ? "Checking location…" : "Check location"}
                   </Button>
                 )}
               </div>
@@ -471,7 +477,7 @@ export function MissionRunner({
 
             <Button type="button" disabled={!position || submitting} className="mt-6 w-full bg-coral" onClick={() => void submit()}>
               <Send className="mr-2 inline" size={18} />
-              {submitting ? "Submitting…" : "Submit mission"}
+              {submitting ? "Finishing…" : "Finish"}
             </Button>
           </Card>
         ) : currentStep ? (
@@ -480,6 +486,11 @@ export function MissionRunner({
               <Chip>{currentStep.type.replace("_", " ")}</Chip>
               {currentStep.required && <Chip className="bg-coral/10 text-coral">Required</Chip>}
             </div>
+            {stepIndex === 0 && (
+              <p className="mb-3 text-sm font-semibold text-ink/50">
+                Keep shopping normally. Polica will guide you through only what is needed.
+              </p>
+            )}
             <h2 className="mt-4 text-2xl font-black">{currentStep.question}</h2>
             {renderStep(currentStep)}
           </Card>
