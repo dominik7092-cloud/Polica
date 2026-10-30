@@ -44,16 +44,6 @@ import {
   Chip,
 } from "./ui";
 
-type MissionStep = {
-  id: string;
-  type: "single_choice" | "price" | "photo" | "text" | "rating";
-  question: string;
-  required?: boolean;
-  options?: string[];
-  minimum_length?: number;
-  currency?: string;
-};
-
 type RawJob = {
   id: string;
   store_id: string;
@@ -64,7 +54,7 @@ type RawJob = {
   estimated_minutes: number;
   starts_at: string | null;
   ends_at: string | null;
-  steps: MissionStep[] | unknown;
+  steps: unknown;
 };
 
 type RawStore = {
@@ -96,7 +86,6 @@ type PolicaJob = {
   lat: number;
   lng: number;
   stepsCount: number;
-  steps: MissionStep[];
   color: string;
   isRoutineMatch: boolean;
   routineMatchType: "exact" | "nearby" | null;
@@ -485,10 +474,7 @@ export function Jobs() {
             minutes: job.estimated_minutes,
             lat: latitude,
             lng: longitude,
-            stepsCount: Array.isArray(job.steps) ? job.steps.length : 0,
-            steps: Array.isArray(job.steps)
-              ? (job.steps as MissionStep[])
-              : [],
+            stepsCount: Array.isArray(job.steps) ? job.steps.length : 4,
             color: jobColors[job.job_type] || "#1fd49a",
             isRoutineMatch: routine.isRoutineMatch,
             routineMatchType: routine.matchType,
@@ -928,20 +914,12 @@ export function Jobs() {
     );
   }
 
-  function missionStep(type: MissionStep["type"]) {
-    return activeReservation?.job.steps.find(
-      (step) => step.type === type
-    );
-  }
-
-  const choiceStep = missionStep("single_choice");
-  const priceStep = missionStep("price");
-  const photoStep = missionStep("photo");
-  const textStep = missionStep("text");
-
   function canContinue() {
     if (currentStep === 0) {
-      return availability.trim().length > 0;
+      return (
+        availability === "Yes" ||
+        availability === "No"
+      );
     }
 
     if (currentStep === 1) {
@@ -960,8 +938,8 @@ export function Jobs() {
 
     if (currentStep === 3) {
       return (
-        observation.trim().length >=
-        (textStep?.minimum_length ?? 10)
+        observation.trim()
+          .length >= 10
       );
     }
 
@@ -1562,7 +1540,7 @@ export function Jobs() {
                 </Card>
 
                 <Card className="p-3 text-center shadow-none">
-                  <b>{detail.stepsCount}</b>
+                  <b>4</b>
                   <p className="text-[10px] text-ink/45">
                     STEPS
                   </p>
@@ -1689,15 +1667,16 @@ export function Jobs() {
                       0 && (
                       <Card className="mt-5 p-6">
                         <h2 className="text-2xl font-black">
-                          {choiceStep?.question ||
-                            "Is the item or display available?"}
+                          Is the cold
+                          drinks display
+                          available?
                         </h2>
 
                         <div className="mt-6 grid grid-cols-2 gap-3">
-                          {(choiceStep?.options || [
+                          {[
                             "Yes",
                             "No",
-                          ]).map(
+                          ].map(
                             (
                               option
                             ) => (
@@ -1732,8 +1711,8 @@ export function Jobs() {
                       1 && (
                       <Card className="mt-5 p-6">
                         <h2 className="text-2xl font-black">
-                          {priceStep?.question ||
-                            "Enter the displayed price"}
+                          Enter the
+                          displayed price
                         </h2>
 
                         <label className="mt-6 flex items-center rounded-2xl border border-black/10 bg-white px-4">
@@ -1767,8 +1746,8 @@ export function Jobs() {
                       2 && (
                       <Card className="mt-5 p-5">
                         <h2 className="text-2xl font-black">
-                          {photoStep?.question ||
-                            "Take a live evidence photo"}
+                          Take a live
+                          display photo
                         </h2>
 
                         <p className="mt-2 text-sm text-ink/55">
@@ -1882,8 +1861,10 @@ export function Jobs() {
                       3 && (
                       <Card className="mt-5 p-6">
                         <h2 className="text-2xl font-black">
-                          {textStep?.question ||
-                            "Add your observation"}
+                          Describe any
+                          visibility or
+                          availability
+                          issue
                         </h2>
 
                         <textarea
@@ -1900,7 +1881,7 @@ export function Jobs() {
                             )
                           }
                           rows={6}
-                          placeholder={`Minimum ${textStep?.minimum_length ?? 10} characters`}
+                          placeholder="Minimum 10 characters"
                           className="mt-6 w-full resize-none rounded-2xl border border-black/10 bg-white p-4 outline-none focus:border-mint"
                         />
 
