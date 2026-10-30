@@ -36,6 +36,7 @@ import {
   type MissionRunnerReservation,
   type MissionStep,
 } from "./mission-runner";
+import { ShoppingTripManager } from "./shopping-trip-manager";
 import {
   Button,
   Card,
@@ -74,6 +75,7 @@ type RawReservation = {
 
 type PolicaJob = {
   id: string;
+  storeId: string;
   title: string;
   chain: string;
   address: string;
@@ -462,6 +464,7 @@ export function Jobs() {
 
           return {
             id: job.id,
+            storeId: job.store_id,
             title: job.title,
             chain:
               store?.chain ||
@@ -1267,6 +1270,13 @@ export function Jobs() {
             Map
           </button>
         </div>
+
+        {!loading && !loadError && (
+          <ShoppingTripManager
+            jobs={filteredJobs}
+            onChanged={loadJobs}
+          />
+        )}
 
         {loading && (
           <Card className="p-6 text-center">
