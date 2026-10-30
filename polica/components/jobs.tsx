@@ -29,15 +29,8 @@ import {
   RotateCcw,
   Navigation,
   Send,
-  Star,
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
-import {
-  findRoutineMatch,
-  shoppingMissionLabel,
-  visitFrequencyLabel,
-  type StorePreference,
-} from "@/lib/routine-matching";
 import {
   Button,
   Card,
@@ -87,13 +80,6 @@ type PolicaJob = {
   lng: number;
   stepsCount: number;
   color: string;
-  isRoutineMatch: boolean;
-  routineMatchType: "exact" | "nearby" | null;
-  routineDistanceMeters: number | null;
-  routineShoppingMission: string | null;
-  routineVisitFrequency: string | null;
-  routineStoreName: string | null;
-  routineScore: number;
 };
 
 type ActiveReservation = {
@@ -375,9 +361,11 @@ export function Jobs() {
       setLoadError("");
 
       const client = supabase();
-      const { data: { user } } = await client.auth.getUser();
 
-      const jobsResult = await client
+      const {
+        data: jobsData,
+        error: jobsError,
+      } = await client
         .from("jobs")
         .select(`
           id,
@@ -392,38 +380,21 @@ export function Jobs() {
           steps
         `)
         .eq("published", true)
-        .order("reward_cents", { ascending: false });
+        .order("reward_cents", {
+          ascending: false,
+        });
 
-      if (jobsResult.error) {
-        setLoadError(jobsResult.error.message);
+      if (jobsError) {
+        setLoadError(
+          jobsError.message
+        );
         setJobs([]);
         setLoading(false);
         return;
       }
 
-      let preferences: StorePreference[] = [];
-
-      if (user) {
-        const preferencesResult = await client
-          .from("agent_store_preferences")
-          .select(`
-            id,
-            store_name,
-            chain,
-            address,
-            lat,
-            lng,
-            shopping_mission,
-            visit_frequency
-          `)
-          .eq("agent_id", user.id);
-
-        if (!preferencesResult.error) {
-          preferences = (preferencesResult.data ?? []) as StorePreference[];
-        }
-      }
-
-      const rawJobs = (jobsResult.data ?? []) as RawJob[];
+      const rawJobs =
+        (jobsData ?? []) as RawJob[];
 
       if (rawJobs.length === 0) {
         setJobs([]);
@@ -431,14 +402,25 @@ export function Jobs() {
         return;
       }
 
-      const storeIds = Array.from(
-        new Set(rawJobs.map((job) => job.store_id).filter(Boolean))
-      );
+      const storeIds =
+        Array.from(
+          new Set(
+            rawJobs
+              .map(
+                (job) =>
+                  job.store_id
+              )
+              .filter(Boolean)
+          )
+        );
 
-      let stores: RawStore[] = [];
+      let stores: RawStore[] =
+        [];
 
       if (storeIds.length > 0) {
-        const { data: storesData } = await client
+        const {
+          data: storesData,
+        } = await client
           .from("stores")
           .select(`
             id,
@@ -449,47 +431,60 @@ export function Jobs() {
           `)
           .in("id", storeIds);
 
-        stores = (storesData ?? []) as RawStore[];
+        stores =
+          (storesData ??
+            []) as RawStore[];
       }
 
-      const storesById = new globalThis.Map<string, RawStore>(
-        stores.map((store) => [store.id, store])
-      );
+      const storesById =
+        new globalThis.Map<
+          string,
+          RawStore
+        >(
+          stores.map((store) => [
+            store.id,
+            store,
+          ])
+        );
 
-      const normalizedJobs: PolicaJob[] = rawJobs
-        .map((job) => {
-          const store = storesById.get(job.store_id);
-          const latitude = store?.lat ?? 0;
-          const longitude = store?.lng ?? 0;
-          const routine = findRoutineMatch(latitude, longitude, preferences);
+      const normalizedJobs =
+        rawJobs.map((job) => {
+          const store =
+            storesById.get(
+              job.store_id
+            );
 
           return {
             id: job.id,
             title: job.title,
-            chain: store?.chain || "Store",
-            address: store?.address || "Address unavailable",
+            chain:
+              store?.chain ||
+              "Store",
+            address:
+              store?.address ||
+              "Address unavailable",
             type: job.job_type,
-            reward: job.reward_cents / 100,
-            refund: (job.refund_cents ?? 0) / 100,
-            minutes: job.estimated_minutes,
-            lat: latitude,
-            lng: longitude,
-            stepsCount: Array.isArray(job.steps) ? job.steps.length : 4,
-            color: jobColors[job.job_type] || "#1fd49a",
-            isRoutineMatch: routine.isRoutineMatch,
-            routineMatchType: routine.matchType,
-            routineDistanceMeters: routine.distanceMeters,
-            routineShoppingMission: routine.shoppingMission,
-            routineVisitFrequency: routine.visitFrequency,
-            routineStoreName: routine.regularStoreName,
-            routineScore: routine.routineScore,
+            reward:
+              job.reward_cents /
+              100,
+            refund:
+              (job.refund_cents ??
+                0) / 100,
+            minutes:
+              job.estimated_minutes,
+            lat: store?.lat ?? 0,
+            lng: store?.lng ?? 0,
+            stepsCount:
+              Array.isArray(
+                job.steps
+              )
+                ? job.steps.length
+                : 4,
+            color:
+              jobColors[
+                job.job_type
+              ] || "#1fd49a",
           };
-        })
-        .sort((first, second) => {
-          if (second.routineScore !== first.routineScore) {
-            return second.routineScore - first.routineScore;
-          }
-          return second.reward - first.reward;
         });
 
       setJobs(normalizedJobs);
@@ -1344,17 +1339,6 @@ export function Jobs() {
                       <div className="min-w-0 flex-1">
                         <div className="flex justify-between gap-3">
                           <div>
-                            {job.isRoutineMatch && (
-                              <div className="mb-2">
-                                <Chip className="bg-mint/20 text-ink">
-                                  <Star className="mr-1 fill-mint text-mint" size={13} />
-                                  {job.routineMatchType === "exact"
-                                    ? "Fits your routine"
-                                    : "Near your regular store"}
-                                </Chip>
-                              </div>
-                            )}
-
                             <p className="text-xs font-bold uppercase text-ink/45">
                               {
                                 job.chain
@@ -1389,21 +1373,20 @@ export function Jobs() {
                             {
                               job.address
                             }
-                          </span>
+                          </span>
 
-                        {job.isRoutineMatch && (
-                          <div className="mt-3 rounded-2xl bg-mint/10 px-3 py-2">
-                            <p className="text-xs font-bold text-ink">
-                              {shoppingMissionLabel(job.routineShoppingMission)}{" · "}
-                              {visitFrequencyLabel(job.routineVisitFrequency)}
-                            </p>
-                            <p className="mt-1 text-[10px] text-ink/45">
-                              {job.routineStoreName}
-                              {job.routineDistanceMeters !== null &&
-                                ` · ${job.routineDistanceMeters} m from mission`}
-                            </p>
-                          </div>
-                        )}
+                          <span className="flex shrink-0 gap-1">
+                            <Clock
+                              size={
+                                13
+                              }
+                            />
+                            {
+                              job.minutes
+                            }{" "}
+                            min
+                          </span>
+                        </div>
                       </div>
                     </div>
                   </Card>
@@ -1500,21 +1483,12 @@ export function Jobs() {
 
               <h2 className="mt-4 pr-10 text-3xl font-black">
                 {detail.title}
-              </h2>
+              </h2>
 
-                {detail.isRoutineMatch && (
-                  <div className="mt-4 rounded-2xl border border-mint/30 bg-mint/10 p-4">
-                    <p className="flex items-center gap-2 font-black">
-                      <Star className="fill-mint text-mint" size={18} />
-                      Fits your shopping routine
-                    </p>
-                    <p className="mt-2 text-sm text-ink/60">
-                      You marked {detail.routineStoreName} as a{" "}
-                      {shoppingMissionLabel(detail.routineShoppingMission).toLowerCase()} location that you visit{" "}
-                      {visitFrequencyLabel(detail.routineVisitFrequency).toLowerCase()}.
-                    </p>
-                  </div>
-                )}
+              <p className="mt-2 text-sm text-ink/55">
+                {detail.chain} ·{" "}
+                {detail.address}
+              </p>
 
               <div className="my-6 grid grid-cols-3 gap-2">
                 <Card className="p-3 text-center shadow-none">
