@@ -1440,21 +1440,22 @@ export function Jobs() {
                 >
                   <Card className="p-4">
                     <div className="flex items-start gap-4">
-                      <div
-                        className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl"
-                        style={{
-                          background:
-                            job.color +
-                            "2a",
-                        }}
-                      >
-                        <ShoppingBag
-                          style={{
-                            color:
-                              job.color,
-                          }}
-                        />
-                      </div>
+                      {job.chain.toLowerCase().includes("konzum") ? (
+                        <div className="h-14 w-16 shrink-0 overflow-hidden rounded-2xl bg-[#e30613] shadow-sm">
+                          <img
+                            src="/retailers/konzum-logo.jpg"
+                            alt="Konzum"
+                            className="h-full w-full object-cover"
+                          />
+                        </div>
+                      ) : (
+                        <div
+                          className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl"
+                          style={{ background: job.color + "2a" }}
+                        >
+                          <ShoppingBag style={{ color: job.color }} />
+                        </div>
+                      )}
 
                       <div className="min-w-0 flex-1">
                         <div className="flex justify-between gap-3">
