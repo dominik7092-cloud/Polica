@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { Card, Chip } from "@/components/ui";
 import { ProfilePreferences } from "@/components/profile-preferences-client";
+import { LogoutButton } from "@/components/logout-button";
 
 type Submission = {
   id: string;
@@ -162,6 +163,8 @@ export default async function ProfilePage({ params }: { params: { locale: string
 
       <h2 className="mb-3 mt-8 text-xl font-black">Account</h2>
       <Card className="mb-3 flex items-center gap-3 p-4"><Languages size={20} /><div className="flex-1"><p className="font-bold">Language</p><p className="text-xs text-ink/45">{params.locale === "hr" ? "Hrvatski" : "English"}</p></div><ChevronRight size={18} /></Card>
+
+      <LogoutButton locale={params.locale} />
 
       <h2 className="mb-3 mt-8 text-xl font-black">Privacy & permissions</h2>
       <Card className="mb-3 flex items-center gap-3 p-4"><ShieldCheck size={20} /><div className="flex-1"><p className="font-bold">Camera & location</p><p className="text-xs text-ink/45">Used only when needed for nearby checks and evidence.</p></div></Card>
