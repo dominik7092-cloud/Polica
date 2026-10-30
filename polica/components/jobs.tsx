@@ -32,6 +32,11 @@ import {
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import {
+  MissionRunner,
+  type MissionRunnerReservation,
+  type MissionStep,
+} from "./mission-runner";
+import {
   Button,
   Card,
   Chip,
@@ -47,7 +52,7 @@ type RawJob = {
   estimated_minutes: number;
   starts_at: string | null;
   ends_at: string | null;
-  steps: unknown;
+  steps: MissionStep[] | unknown;
 };
 
 type RawStore = {
@@ -79,6 +84,7 @@ type PolicaJob = {
   lat: number;
   lng: number;
   stepsCount: number;
+  steps: MissionStep[];
   color: string;
 };
 
@@ -479,7 +485,13 @@ export function Jobs() {
                 job.steps
               )
                 ? job.steps.length
-                : 4,
+                : 0,
+            steps:
+              Array.isArray(
+                job.steps
+              )
+                ? (job.steps as MissionStep[])
+                : [],
             color:
               jobColors[
                 job.job_type
@@ -1145,6 +1157,21 @@ export function Jobs() {
       selectedType,
     ]);
 
+  const missionRunnerReservation: MissionRunnerReservation | null =
+    activeReservation
+      ? {
+          id: activeReservation.id,
+          expiresAt: activeReservation.expiresAt,
+          job: {
+            id: activeReservation.job.id,
+            title: activeReservation.job.title,
+            chain: activeReservation.job.chain,
+            address: activeReservation.job.address,
+            steps: activeReservation.job.steps,
+          },
+        }
+      : null;
+
   return (
     <>
       <section className="px-5 pb-5 pt-8">
@@ -1557,490 +1584,24 @@ export function Jobs() {
 
       <AnimatePresence>
         {missionOpen &&
-          activeReservation && (
+          missionRunnerReservation && (
             <motion.div
-              className="fixed inset-0 z-[80] overflow-y-auto bg-cream"
-              initial={{
-                opacity: 0,
-              }}
-              animate={{
-                opacity: 1,
-              }}
-              exit={{
-                opacity: 0,
-              }}
+              key="mission-runner"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
             >
-              <div className="mx-auto min-h-screen max-w-md px-5 pb-10 pt-5">
-                <div className="flex items-center justify-between">
-                  <button
-                    type="button"
-                    onClick={
-                      closeMission
-                    }
-                    className="rounded-full bg-white p-3"
-                  >
-                    <X size={20} />
-                  </button>
-
-                  <div className="text-center">
-                    <p className="text-xs font-bold text-ink/45">
-                      ACTIVE MISSION
-                    </p>
-
-                    <p className="font-black">
-                      {formatCountdown(
-                        countdownSeconds
-                      )}
-                    </p>
-                  </div>
-
-                  <div className="w-11" />
-                </div>
-
-                <div className="mt-5 h-2 overflow-hidden rounded-full bg-white">
-                  <div
-                    className="h-full rounded-full bg-mint transition-all"
-                    style={{
-                      width: `${
-                        ((currentStep +
-                          1) /
-                          5) *
-                        100
-                      }%`,
-                    }}
-                  />
-                </div>
-
-                <p className="mt-3 text-xs font-bold text-ink/45">
-                  STEP{" "}
-                  {currentStep + 1}{" "}
-                  OF 5
-                </p>
-
-                {submissionComplete ? (
-                  <Card className="mt-8 p-8 text-center">
-                    <CheckCircle2
-                      className="mx-auto text-mint"
-                      size={54}
-                    />
-
-                    <h2 className="mt-4 text-3xl font-black">
-                      Mission
-                      submitted
-                    </h2>
-
-                    <p className="mt-3 text-sm text-ink/55">
-                      The submission
-                      has been sent for
-                      review.
-                    </p>
-                  </Card>
-                ) : (
-                  <>
-                    {currentStep ===
-                      0 && (
-                      <Card className="mt-5 p-6">
-                        <h2 className="text-2xl font-black">
-                          Is the cold
-                          drinks display
-                          available?
-                        </h2>
-
-                        <div className="mt-6 grid grid-cols-2 gap-3">
-                          {[
-                            "Yes",
-                            "No",
-                          ].map(
-                            (
-                              option
-                            ) => (
-                              <button
-                                type="button"
-                                key={
-                                  option
-                                }
-                                onClick={() =>
-                                  setAvailability(
-                                    option
-                                  )
-                                }
-                                className={`rounded-2xl border p-5 font-black ${
-                                  availability ===
-                                  option
-                                    ? "border-mint bg-mint/20"
-                                    : "border-black/10 bg-white"
-                                }`}
-                              >
-                                {
-                                  option
-                                }
-                              </button>
-                            )
-                          )}
-                        </div>
-                      </Card>
-                    )}
-
-                    {currentStep ===
-                      1 && (
-                      <Card className="mt-5 p-6">
-                        <h2 className="text-2xl font-black">
-                          Enter the
-                          displayed price
-                        </h2>
-
-                        <label className="mt-6 flex items-center rounded-2xl border border-black/10 bg-white px-4">
-                          <span className="text-2xl font-black">
-                            €
-                          </span>
-
-                          <input
-                            type="number"
-                            inputMode="decimal"
-                            min="0"
-                            step="0.01"
-                            value={price}
-                            onChange={(
-                              event
-                            ) =>
-                              setPrice(
-                                event
-                                  .target
-                                  .value
-                              )
-                            }
-                            placeholder="0.00"
-                            className="w-full bg-transparent px-3 py-5 text-3xl font-black outline-none"
-                          />
-                        </label>
-                      </Card>
-                    )}
-
-                    {currentStep ===
-                      2 && (
-                      <Card className="mt-5 p-5">
-                        <h2 className="text-2xl font-black">
-                          Take a live
-                          display photo
-                        </h2>
-
-                        <p className="mt-2 text-sm text-ink/55">
-                          Use the rear
-                          camera and
-                          include the
-                          full display.
-                        </p>
-
-                        {!cameraOpen &&
-                          !photoPreview && (
-                            <Button
-                              type="button"
-                              className="mt-6 w-full"
-                              onClick={() =>
-                                void openCamera()
-                              }
-                            >
-                              <Camera
-                                className="mr-2 inline"
-                                size={
-                                  18
-                                }
-                              />
-                              Open live
-                              camera
-                            </Button>
-                          )}
-
-                        {cameraOpen && (
-                          <div className="mt-5 overflow-hidden rounded-2xl bg-black">
-                            <video
-                              ref={
-                                videoRef
-                              }
-                              autoPlay
-                              playsInline
-                              muted
-                              className="aspect-[3/4] w-full object-cover"
-                            />
-
-                            <div className="bg-black p-4">
-                              <Button
-                                type="button"
-                                className="w-full bg-white text-ink"
-                                onClick={
-                                  capturePhoto
-                                }
-                              >
-                                <Camera
-                                  className="mr-2 inline"
-                                  size={
-                                    18
-                                  }
-                                />
-                                Take photo
-                              </Button>
-                            </div>
-                          </div>
-                        )}
-
-                        {photoPreview && (
-                          <div className="mt-5">
-                            <img
-                              src={
-                                photoPreview
-                              }
-                              alt="Captured mission evidence"
-                              className="aspect-[3/4] w-full rounded-2xl object-cover"
-                            />
-
-                            <Button
-                              type="button"
-                              className="mt-3 w-full bg-white text-ink shadow-sm"
-                              onClick={
-                                retakePhoto
-                              }
-                            >
-                              <RotateCcw
-                                className="mr-2 inline"
-                                size={
-                                  18
-                                }
-                              />
-                              Retake photo
-                            </Button>
-                          </div>
-                        )}
-
-                        {cameraError && (
-                          <div className="mt-4 flex gap-2 rounded-2xl bg-coral/10 p-4 text-sm text-coral">
-                            <AlertCircle
-                              size={18}
-                            />
-                            {
-                              cameraError
-                            }
-                          </div>
-                        )}
-
-                        <canvas
-                          ref={
-                            canvasRef
-                          }
-                          className="hidden"
-                        />
-                      </Card>
-                    )}
-
-                    {currentStep ===
-                      3 && (
-                      <Card className="mt-5 p-6">
-                        <h2 className="text-2xl font-black">
-                          Describe any
-                          visibility or
-                          availability
-                          issue
-                        </h2>
-
-                        <textarea
-                          value={
-                            observation
-                          }
-                          onChange={(
-                            event
-                          ) =>
-                            setObservation(
-                              event
-                                .target
-                                .value
-                            )
-                          }
-                          rows={6}
-                          placeholder="Minimum 10 characters"
-                          className="mt-6 w-full resize-none rounded-2xl border border-black/10 bg-white p-4 outline-none focus:border-mint"
-                        />
-
-                        <p className="mt-2 text-right text-xs text-ink/45">
-                          {
-                            observation
-                              .trim()
-                              .length
-                          }{" "}
-                          characters
-                        </p>
-                      </Card>
-                    )}
-
-                    {currentStep ===
-                      4 && (
-                      <Card className="mt-5 p-6">
-                        <h2 className="text-2xl font-black">
-                          Verify and
-                          submit
-                        </h2>
-
-                        <div className="mt-5 space-y-3">
-                          <div className="rounded-2xl bg-cream p-4">
-                            <p className="text-xs font-bold text-ink/45">
-                              AVAILABILITY
-                            </p>
-                            <p className="font-black">
-                              {
-                                availability
-                              }
-                            </p>
-                          </div>
-
-                          <div className="rounded-2xl bg-cream p-4">
-                            <p className="text-xs font-bold text-ink/45">
-                              PRICE
-                            </p>
-                            <p className="font-black">
-                              €
-                              {Number(
-                                price
-                              ).toFixed(
-                                2
-                              )}
-                            </p>
-                          </div>
-
-                          <div className="rounded-2xl bg-cream p-4">
-                            <p className="text-xs font-bold text-ink/45">
-                              PHOTO
-                            </p>
-                            <p className="font-black">
-                              Live photo
-                              captured
-                            </p>
-                          </div>
-
-                          <div className="rounded-2xl bg-cream p-4">
-                            <p className="text-xs font-bold text-ink/45">
-                              LOCATION
-                            </p>
-
-                            {position ? (
-                              <div>
-                                <p className="font-black text-mint">
-                                  GPS
-                                  captured
-                                </p>
-
-                                <p className="mt-1 text-xs text-ink/45">
-                                  Accuracy:{" "}
-                                  {Math.round(
-                                    position.accuracy
-                                  )}{" "}
-                                  m
-                                </p>
-                              </div>
-                            ) : (
-                              <Button
-                                type="button"
-                                disabled={
-                                  locationLoading
-                                }
-                                className="mt-2 w-full"
-                                onClick={
-                                  captureLocation
-                                }
-                              >
-                                <Navigation
-                                  className="mr-2 inline"
-                                  size={
-                                    18
-                                  }
-                                />
-                                {locationLoading
-                                  ? "Capturing location…"
-                                  : "Capture GPS"}
-                              </Button>
-                            )}
-                          </div>
-                        </div>
-
-                        {submissionError && (
-                          <div className="mt-4 flex gap-2 rounded-2xl bg-coral/10 p-4 text-sm text-coral">
-                            <AlertCircle
-                              className="shrink-0"
-                              size={18}
-                            />
-                            {
-                              submissionError
-                            }
-                          </div>
-                        )}
-
-                        <Button
-                          type="button"
-                          disabled={
-                            !position ||
-                            submissionLoading
-                          }
-                          className="mt-6 w-full bg-coral"
-                          onClick={() =>
-                            void submitMission()
-                          }
-                        >
-                          <Send
-                            className="mr-2 inline"
-                            size={18}
-                          />
-
-                          {submissionLoading
-                            ? "Submitting…"
-                            : "Submit mission"}
-                        </Button>
-                      </Card>
-                    )}
-
-                    <div className="mt-5 flex gap-3">
-                      {currentStep >
-                        0 && (
-                        <Button
-                          type="button"
-                          className="flex-1 bg-white text-ink shadow-sm"
-                          onClick={() =>
-                            setCurrentStep(
-                              (
-                                step
-                              ) =>
-                                step -
-                                1
-                            )
-                          }
-                        >
-                          <ArrowLeft
-                            className="mr-2 inline"
-                            size={17}
-                          />
-                          Back
-                        </Button>
-                      )}
-
-                      {currentStep <
-                        4 && (
-                        <Button
-                          type="button"
-                          disabled={
-                            !canContinue()
-                          }
-                          className="flex-1"
-                          onClick={
-                            nextStep
-                          }
-                        >
-                          Next
-                          <ArrowRight
-                            className="ml-2 inline"
-                            size={17}
-                          />
-                        </Button>
-                      )}
-                    </div>
-                  </>
-                )}
-              </div>
+              <MissionRunner
+                reservation={missionRunnerReservation}
+                countdownSeconds={countdownSeconds}
+                onClose={closeMission}
+                onSubmitted={() => {
+                  setMissionOpen(false);
+                  setActiveReservation(null);
+                  setCountdownSeconds(0);
+                  void loadJobs();
+                }}
+              />
             </motion.div>
           )}
       </AnimatePresence>
