@@ -1,13 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Euro, Clock, CheckCircle2, AlertCircle, Send, Store } from "lucide-react";
+import { AlertCircle, CheckCircle2, Clock, Euro, Plus, Send, Store } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { Button, Card, Chip } from "./ui";
 import {
-  RetailLocationPicker,
+  RetailLocationMultiPicker,
   type RetailLocation,
-} from "./retail-location-picker";
+} from "./retail-location-multi-picker";
 
 const jobTypes = [
   "Audit",
@@ -20,7 +20,7 @@ const jobTypes = [
 ];
 
 export function CreateJob() {
-  const [selectedLocation, setSelectedLocation] = useState<RetailLocation | null>(null);
+  const [selectedLocations, setSelectedLocations] = useState<RetailLocation[]>([]);
   const [title, setTitle] = useState("");
   const [jobType, setJobType] = useState("Audit");
   const [reward, setReward] = useState("7.50");
@@ -38,7 +38,7 @@ export function CreateJob() {
   const [endDate, setEndDate] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
-  const [created, setCreated] = useState(false);
+  const [createdCount, setCreatedCount] = useState<number | null>(null);
 
   function buildSteps() {
     return questions
@@ -48,16 +48,10 @@ export function CreateJob() {
       .map((question, index) => {
         const lower = question.toLowerCase();
         let type = "text";
-
-        if (lower.includes("photo")) {
-          type = "photo";
-        } else if (lower.includes("price")) {
-          type = "price";
-        } else if (lower.includes("rate") || lower.includes("rating")) {
-          type = "rating";
-        } else if (lower.startsWith("is ") || lower.startsWith("are ")) {
-          type = "single_choice";
-        }
+        if (lower.includes("photo")) type = "photo";
+        else if (lower.includes("price")) type = "price";
+        else if (lower.includes("rate") || lower.includes("rating")) type = "rating";
+        else if (lower.startsWith("is ") || lower.startsWith("are ")) type = "single_choice";
 
         return {
           id: `step-${index + 1}`,
@@ -71,15 +65,14 @@ export function CreateJob() {
       });
   }
 
-  async function createJob() {
+  async function publish() {
     setError("");
-    setCreated(false);
+    setCreatedCount(null);
 
-    if (!selectedLocation) {
-      setError("Select a Konzum location first.");
+    if (selectedLocations.length === 0) {
+      setError("Select at least one Konzum location.");
       return;
     }
-
     if (!title.trim()) {
       setError("Mission title is required.");
       return;
@@ -93,27 +86,23 @@ export function CreateJob() {
       setError("Reward must be at least €1.");
       return;
     }
-
     if (!Number.isFinite(minutesValue) || minutesValue < 1) {
       setError("Enter a valid mission duration.");
       return;
     }
-
     if (!startDate || !endDate) {
-      setError("Select the mission time window.");
+      setError("Select the campaign time window.");
       return;
     }
 
     const start = new Date(startDate);
     const end = new Date(endDate);
-
     if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end <= start) {
-      setError("The mission end time must be after the start time.");
+      setError("The campaign end time must be after the start time.");
       return;
     }
 
     const steps = buildSteps();
-
     if (steps.length === 0) {
       setError("Add at least one mission step.");
       return;
@@ -121,12 +110,8 @@ export function CreateJob() {
 
     setSubmitting(true);
     const client = supabase();
-
-    const { error: createError } = await client.rpc("create_job_with_store", {
-      p_chain: selectedLocation.retailer,
-      p_address: `${selectedLocation.address}, ${selectedLocation.city}`,
-      p_lat: selectedLocation.latitude,
-      p_lng: selectedLocation.longitude,
+    const { data, error: publishError } = await client.rpc("create_jobs_for_retail_locations", {
+      p_location_ids: selectedLocations.map((location) => location.id),
       p_title: title.trim(),
       p_job_type: jobType,
       p_reward_cents: Math.round(rewardValue * 100),
@@ -137,19 +122,19 @@ export function CreateJob() {
       p_steps: steps,
     });
 
-    if (createError) {
-      setError(createError.message);
+    if (publishError) {
+      setError(publishError.message);
       setSubmitting(false);
       return;
     }
 
+    setCreatedCount(typeof data === "number" ? data : selectedLocations.length);
     setSubmitting(false);
-    setCreated(true);
   }
 
-  function resetForm() {
-    setCreated(false);
-    setSelectedLocation(null);
+  function reset() {
+    setCreatedCount(null);
+    setSelectedLocations([]);
     setTitle("");
     setJobType("Audit");
     setReward("7.50");
@@ -157,27 +142,19 @@ export function CreateJob() {
     setMinutes("12");
     setStartDate("");
     setEndDate("");
-    setQuestions(
-      [
-        "Is the display available?",
-        "Enter the displayed price",
-        "Take a clear photo of the display",
-        "Describe any visibility or availability issue",
-      ].join("\n")
-    );
   }
 
-  if (created) {
+  if (createdCount !== null) {
     return (
       <Card className="mt-6 p-7 text-center">
         <CheckCircle2 className="mx-auto text-mint" size={50} />
-        <h2 className="mt-4 text-2xl font-black">Mission published</h2>
+        <h2 className="mt-4 text-2xl font-black">Campaign published</h2>
         <p className="mt-2 text-sm text-ink/55">
-          The mission is now available to eligible Polica agents.
+          {createdCount} individual missions were created for selected Konzum locations.
         </p>
-        <Button type="button" className="mt-5 w-full" onClick={resetForm}>
+        <Button type="button" className="mt-5 w-full" onClick={reset}>
           <Plus className="mr-2 inline" size={18} />
-          Create another mission
+          Create another campaign
         </Button>
       </Card>
     );
@@ -188,22 +165,18 @@ export function CreateJob() {
       <Card className="p-5">
         <div className="flex items-center gap-2">
           <Store size={20} />
-          <h2 className="text-xl font-black">Konzum location</h2>
+          <h2 className="text-xl font-black">Campaign locations</h2>
         </div>
         <p className="mt-2 text-sm text-ink/50">
-          Select a store from the Konzum location master. Address and GPS are filled automatically.
+          Select one or multiple Konzum locations. Polica will create one independently reservable mission for every selected store.
         </p>
         <div className="mt-5">
-          <RetailLocationPicker
-            value={selectedLocation}
-            onChange={setSelectedLocation}
-          />
+          <RetailLocationMultiPicker value={selectedLocations} onChange={setSelectedLocations} />
         </div>
       </Card>
 
       <Card className="p-5">
         <h2 className="text-xl font-black">Mission</h2>
-
         <label className="mt-5 block">
           <span className="text-sm font-bold">Mission title</span>
           <input
@@ -219,9 +192,7 @@ export function CreateJob() {
           <div className="mt-2 flex flex-wrap gap-2">
             {jobTypes.map((type) => (
               <button type="button" key={type} onClick={() => setJobType(type)}>
-                <Chip className={jobType === type ? "bg-ink text-white" : "bg-cream"}>
-                  {type}
-                </Chip>
+                <Chip className={jobType === type ? "bg-ink text-white" : "bg-cream"}>{type}</Chip>
               </button>
             ))}
           </div>
@@ -229,81 +200,37 @@ export function CreateJob() {
 
         <div className="mt-5 grid grid-cols-2 gap-3">
           <label>
-            <span className="flex items-center gap-1 text-sm font-bold">
-              <Euro size={15} /> Reward
-            </span>
-            <input
-              type="number"
-              min="1"
-              step="0.50"
-              value={reward}
-              onChange={(event) => setReward(event.target.value)}
-              className="mt-2 w-full rounded-2xl border border-black/10 bg-white px-4 py-4 outline-none focus:border-mint"
-            />
+            <span className="flex items-center gap-1 text-sm font-bold"><Euro size={15} /> Reward/store</span>
+            <input type="number" min="1" step="0.50" value={reward} onChange={(e) => setReward(e.target.value)} className="mt-2 w-full rounded-2xl border border-black/10 bg-white px-4 py-4 outline-none focus:border-mint" />
           </label>
-
           <label>
-            <span className="flex items-center gap-1 text-sm font-bold">
-              <Clock size={15} /> Minutes
-            </span>
-            <input
-              type="number"
-              min="1"
-              value={minutes}
-              onChange={(event) => setMinutes(event.target.value)}
-              className="mt-2 w-full rounded-2xl border border-black/10 bg-white px-4 py-4 outline-none focus:border-mint"
-            />
+            <span className="flex items-center gap-1 text-sm font-bold"><Clock size={15} /> Minutes</span>
+            <input type="number" min="1" value={minutes} onChange={(e) => setMinutes(e.target.value)} className="mt-2 w-full rounded-2xl border border-black/10 bg-white px-4 py-4 outline-none focus:border-mint" />
           </label>
         </div>
 
         <label className="mt-4 block">
-          <span className="text-sm font-bold">Product refund (optional)</span>
-          <input
-            type="number"
-            min="0"
-            step="0.50"
-            value={refund}
-            onChange={(event) => setRefund(event.target.value)}
-            className="mt-2 w-full rounded-2xl border border-black/10 bg-white px-4 py-4 outline-none focus:border-mint"
-          />
+          <span className="text-sm font-bold">Product refund/store (optional)</span>
+          <input type="number" min="0" step="0.50" value={refund} onChange={(e) => setRefund(e.target.value)} className="mt-2 w-full rounded-2xl border border-black/10 bg-white px-4 py-4 outline-none focus:border-mint" />
         </label>
       </Card>
 
       <Card className="p-5">
-        <h2 className="text-xl font-black">Task steps</h2>
+        <h2 className="text-xl font-black">Dynamic task steps</h2>
         <p className="mt-2 text-sm text-ink/50">Enter one instruction per line.</p>
-        <textarea
-          rows={8}
-          value={questions}
-          onChange={(event) => setQuestions(event.target.value)}
-          className="mt-4 w-full resize-none rounded-2xl border border-black/10 bg-white p-4 outline-none focus:border-mint"
-        />
-        <p className="mt-3 text-xs text-ink/40">
-          Polica recognizes yes/no, price, photo, rating and text steps.
-        </p>
+        <textarea rows={8} value={questions} onChange={(e) => setQuestions(e.target.value)} className="mt-4 w-full resize-none rounded-2xl border border-black/10 bg-white p-4 outline-none focus:border-mint" />
+        <p className="mt-3 text-xs text-ink/40">Polica recognizes yes/no, price, photo, rating and text steps.</p>
       </Card>
 
       <Card className="p-5">
         <h2 className="text-xl font-black">Campaign window</h2>
-
         <label className="mt-5 block">
           <span className="text-sm font-bold">Starts</span>
-          <input
-            type="datetime-local"
-            value={startDate}
-            onChange={(event) => setStartDate(event.target.value)}
-            className="mt-2 w-full rounded-2xl border border-black/10 bg-white px-4 py-4 outline-none focus:border-mint"
-          />
+          <input type="datetime-local" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="mt-2 w-full rounded-2xl border border-black/10 bg-white px-4 py-4 outline-none focus:border-mint" />
         </label>
-
         <label className="mt-4 block">
           <span className="text-sm font-bold">Ends</span>
-          <input
-            type="datetime-local"
-            value={endDate}
-            onChange={(event) => setEndDate(event.target.value)}
-            className="mt-2 w-full rounded-2xl border border-black/10 bg-white px-4 py-4 outline-none focus:border-mint"
-          />
+          <input type="datetime-local" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="mt-2 w-full rounded-2xl border border-black/10 bg-white px-4 py-4 outline-none focus:border-mint" />
         </label>
       </Card>
 
@@ -314,14 +241,17 @@ export function CreateJob() {
         </div>
       )}
 
-      <Button
-        type="button"
-        disabled={submitting}
-        className="w-full bg-coral py-4"
-        onClick={() => void createJob()}
-      >
+      <div className="rounded-2xl bg-ink p-5 text-white">
+        <p className="text-xs text-white/50">Campaign summary</p>
+        <p className="mt-1 text-2xl font-black">{selectedLocations.length} locations</p>
+        <p className="mt-2 text-sm text-white/65">
+          Agent rewards: €{(selectedLocations.length * (Number(reward) || 0)).toFixed(2)} if every mission is approved.
+        </p>
+      </div>
+
+      <Button type="button" disabled={submitting || selectedLocations.length === 0} className="w-full bg-coral py-4" onClick={() => void publish()}>
         <Send className="mr-2 inline" size={18} />
-        {submitting ? "Publishing…" : "Publish mission"}
+        {submitting ? "Publishing…" : `Publish ${selectedLocations.length || ""} missions`}
       </Button>
     </div>
   );
