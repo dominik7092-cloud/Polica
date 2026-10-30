@@ -11,26 +11,29 @@ workflows:
     scripts:
       - name: Install dependencies
         script: |
+          cd polica
           npm install
 
       - name: Create iOS project
         script: |
+          cd polica
           if [ ! -d "ios" ]; then
             npx cap add ios
           fi
 
       - name: Sync Capacitor
         script: |
+          cd polica
           npx cap sync ios
 
       - name: Install CocoaPods
         script: |
-          cd ios/App
+          cd polica/ios/App
           pod install
 
       - name: Build Polica for iPhone Simulator
         script: |
-          cd ios/App
+          cd polica/ios/App
           xcodebuild \
             -workspace App.xcworkspace \
             -scheme App \
