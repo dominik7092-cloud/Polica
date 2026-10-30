@@ -1,377 +1,202 @@
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import {
+  Activity,
   AlertTriangle,
   Banknote,
-  Users,
-  ShieldBan,
-  Activity,
+  BriefcaseBusiness,
+  Building2,
+  CheckCircle2,
+  Clock3,
   LogIn,
+  MapPinned,
+  Plus,
+  ShieldBan,
+  Users,
 } from "lucide-react";
-import {
-  Card,
-  Chip,
-} from "@/components/ui";
+import { Card, Chip } from "@/components/ui";
 import { AdminReview } from "@/components/admin-review";
+import { AdminJobControls, AdminUserControls } from "@/components/admin-controls";
 
-export default async function AdminPage({
-  params,
-}: {
-  params: {
-    locale: string;
-  };
-}) {
-  const supabase =
-    createClient();
+type AdminJob = {
+  id: string;
+  store_id: string;
+  title: string;
+  job_type: string;
+  reward_cents: number;
+  estimated_minutes: number;
+  published: boolean;
+  starts_at: string | null;
+  ends_at: string | null;
+};
 
-  const {
-    data: { user },
-  } =
-    await supabase.auth.getUser();
+type StoreRow = { id: string; chain: string | null; address: string };
+type ActivityRow = { id: string; user_id: string | null; event_type: string; created_at: string };
 
-  if (!user) {
-    redirect(
-      `/${params.locale}/auth/login`
-    );
-  }
+export default async function AdminPage({ params }: { params: { locale: string } }) {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect(`/${params.locale}/auth/login`);
 
-  const { data: profile } =
-    await supabase
-      .from("profiles")
-      .select("role")
-      .eq("id", user.id)
-      .single();
+  const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).single();
+  if (profile?.role !== "admin") redirect(`/${params.locale}/jobs`);
 
-  if (
-    profile?.role !== "admin"
-  ) {
-    redirect(
-      `/${params.locale}/jobs`
-    );
-  }
+  const { data: users } = await supabase
+    .from("profiles")
+    .select("id, first_name, country_code, role, approved_jobs, banned_at, created_at")
+    .order("created_at", { ascending: false });
 
-  const { data: users } =
-    await supabase
-      .from("profiles")
-      .select(`
-        id,
-        first_name,
-        country_code,
-        role,
-        approved_jobs,
-        banned_at,
-        created_at
-      `)
-      .order("created_at", {
-        ascending: false,
-      });
-
-  const {
-    data: activities,
-  } = await supabase
+  const { data: activities } = await supabase
     .from("activity_events")
-    .select(`
-      id,
-      user_id,
-      event_type,
-      created_at
-    `)
-    .order("created_at", {
-      ascending: false,
-    })
-    .limit(10);
+    .select("id, user_id, event_type, created_at")
+    .order("created_at", { ascending: false })
+    .limit(12);
 
-  const {
-    data: submissions,
-  } = await supabase
+  const { data: submissions } = await supabase
     .from("submissions")
-    .select("id, status")
-    .in("status", [
-      "submitted",
-      "flagged",
-    ]);
+    .select("id, job_id, status")
+    .order("created_at", { ascending: false });
 
-  const {
-    data: payouts,
-  } = await supabase
+  const { data: payouts } = await supabase
     .from("payouts")
     .select("id, status")
-    .in("status", [
-      "requested",
-      "processing",
-    ]);
+    .in("status", ["requested", "processing"]);
 
-  const registeredUsers =
-    users?.length ?? 0;
+  const { data: jobsData } = await supabase
+    .from("jobs")
+    .select("id, store_id, title, job_type, reward_cents, estimated_minutes, published, starts_at, ends_at")
+    .order("starts_at", { ascending: false });
+  const jobs = (jobsData ?? []) as AdminJob[];
 
-  const bannedUsers =
-    users?.filter(
-      (person) =>
-        Boolean(
-          person.banned_at
-        )
-    ).length ?? 0;
-
-  const reviewCount =
-    submissions?.length ?? 0;
-
-  const payoutCount =
-    payouts?.length ?? 0;
-
-  function getUserName(
-    userId: string | null
-  ) {
-    if (!userId) {
-      return "Deleted user";
-    }
-
-    const person =
-      users?.find(
-        (candidate) =>
-          candidate.id ===
-          userId
-      );
-
-    return (
-      person?.first_name ||
-      "User"
-    );
+  const storeIds = Array.from(new Set(jobs.map((job) => job.store_id)));
+  let stores: StoreRow[] = [];
+  if (storeIds.length > 0) {
+    const { data } = await supabase.from("stores").select("id, chain, address").in("id", storeIds);
+    stores = (data ?? []) as StoreRow[];
   }
 
-  function activityLabel(
-    eventType: string
-  ) {
-    switch (eventType) {
-      case "login":
-        return "Logged in";
+  const { data: reservations } = await supabase.from("reservations").select("id, job_id");
+  const { count: locationCount } = await supabase
+    .from("retail_locations")
+    .select("id", { count: "exact", head: true })
+    .eq("active", true);
 
-      case "job_reserved":
-        return "Reserved a job";
+  const storesById = new Map(stores.map((store) => [store.id, store]));
+  const jobActivity = new Map<string, { reservations: number; submissions: number }>();
+  for (const job of jobs) jobActivity.set(job.id, { reservations: 0, submissions: 0 });
+  for (const reservation of reservations ?? []) {
+    const item = jobActivity.get(reservation.job_id);
+    if (item) item.reservations += 1;
+  }
+  for (const submission of submissions ?? []) {
+    const item = jobActivity.get(submission.job_id);
+    if (item) item.submissions += 1;
+  }
 
-      case "job_submitted":
-        return "Submitted a mission";
+  const registeredUsers = users?.length ?? 0;
+  const bannedUsers = users?.filter((person) => Boolean(person.banned_at)).length ?? 0;
+  const reviewCount = submissions?.filter((item) => ["submitted", "flagged"].includes(item.status)).length ?? 0;
+  const payoutCount = payouts?.length ?? 0;
+  const activeJobs = jobs.filter((job) => job.published).length;
+  const completedJobs = submissions?.filter((item) => item.status === "approved").length ?? 0;
 
-      case "submission_approved":
-        return "Submission approved";
+  function getUserName(userId: string | null) {
+    if (!userId) return "Deleted user";
+    return users?.find((candidate) => candidate.id === userId)?.first_name || "User";
+  }
 
-      case "submission_rejected":
-        return "Submission rejected";
-
-      case "payout_requested":
-        return "Payout requested";
-
-      case "payout_paid":
-        return "Payout completed";
-
-      default:
-        return eventType.replaceAll(
-          "_",
-          " "
-        );
-    }
+  function activityLabel(eventType: string) {
+    return eventType.replaceAll("_", " ");
   }
 
   return (
     <section className="px-5 py-8">
-      <p className="text-sm font-bold text-coral">
-        Admin console
-      </p>
-
-      <h1 className="text-4xl font-black">
-        Operations
-      </h1>
+      <p className="text-sm font-bold text-coral">Polica Admin</p>
+      <div className="flex items-end justify-between gap-4">
+        <div>
+          <h1 className="text-4xl font-black">Control center</h1>
+          <p className="mt-2 text-sm text-ink/50">Operate campaigns, checks, users, submissions and payouts.</p>
+        </div>
+        <Link href={`/${params.locale}/client`} className="shrink-0 rounded-2xl bg-coral px-4 py-3 text-xs font-black text-white">
+          <Plus className="mr-1 inline" size={15} /> Create campaign
+        </Link>
+      </div>
 
       <div className="mt-6 grid grid-cols-2 gap-3">
-        <Card className="p-4">
-          <AlertTriangle
-            size={20}
-          />
-
-          <p className="mt-3 text-2xl font-black">
-            {reviewCount}
-          </p>
-
-          <p className="text-xs font-bold text-ink/45">
-            Review queue
-          </p>
-        </Card>
-
-        <Card className="p-4">
-          <Banknote
-            size={20}
-          />
-
-          <p className="mt-3 text-2xl font-black">
-            {payoutCount}
-          </p>
-
-          <p className="text-xs font-bold text-ink/45">
-            Payouts
-          </p>
-        </Card>
-
-        <Card className="p-4">
-          <Users size={20} />
-
-          <p className="mt-3 text-2xl font-black">
-            {
-              registeredUsers
-            }
-          </p>
-
-          <p className="text-xs font-bold text-ink/45">
-            Users
-          </p>
-        </Card>
-
-        <Card className="p-4">
-          <ShieldBan
-            size={20}
-          />
-
-          <p className="mt-3 text-2xl font-black">
-            {bannedUsers}
-          </p>
-
-          <p className="text-xs font-bold text-ink/45">
-            Banned
-          </p>
-        </Card>
+        <Card className="p-4"><BriefcaseBusiness size={20} /><p className="mt-3 text-2xl font-black">{activeJobs}</p><p className="text-xs font-bold text-ink/45">Published checks</p></Card>
+        <Card className="p-4"><AlertTriangle size={20} /><p className="mt-3 text-2xl font-black">{reviewCount}</p><p className="text-xs font-bold text-ink/45">Needs review</p></Card>
+        <Card className="p-4"><Banknote size={20} /><p className="mt-3 text-2xl font-black">{payoutCount}</p><p className="text-xs font-bold text-ink/45">Payout requests</p></Card>
+        <Card className="p-4"><Users size={20} /><p className="mt-3 text-2xl font-black">{registeredUsers}</p><p className="text-xs font-bold text-ink/45">Users</p></Card>
+        <Card className="p-4"><CheckCircle2 size={20} /><p className="mt-3 text-2xl font-black">{completedJobs}</p><p className="text-xs font-bold text-ink/45">Approved results</p></Card>
+        <Card className="p-4"><MapPinned size={20} /><p className="mt-3 text-2xl font-black">{locationCount ?? 0}</p><p className="text-xs font-bold text-ink/45">Active locations</p></Card>
       </div>
 
+      <div className="mt-10 flex items-end justify-between gap-3">
+        <div><p className="text-xs font-bold uppercase tracking-widest text-ink/40">Operations</p><h2 className="text-2xl font-black">Campaign checks</h2></div>
+        <Link href={`/${params.locale}/client`} className="text-xs font-black underline">Create new</Link>
+      </div>
+
+      {jobs.length === 0 ? (
+        <Card className="mt-4 p-6 text-center"><p className="font-black">No checks yet</p></Card>
+      ) : (
+        <div className="mt-4 space-y-3">
+          {jobs.map((job) => {
+            const store = storesById.get(job.store_id);
+            const activity = jobActivity.get(job.id) ?? { reservations: 0, submissions: 0 };
+            const canDelete = activity.reservations === 0 && activity.submissions === 0;
+            return (
+              <Card key={job.id} className="p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Chip className={job.published ? "bg-mint/20" : "bg-black/5 text-ink/50"}>{job.published ? "Published" : "Unpublished"}</Chip>
+                      <Chip>{job.job_type}</Chip>
+                    </div>
+                    <h3 className="mt-2 font-black">{job.title}</h3>
+                    <p className="mt-1 text-xs text-ink/45">{store?.chain || "Store"} · {store?.address || "Address unavailable"}</p>
+                  </div>
+                  <div className="text-right"><p className="text-lg font-black">€{(job.reward_cents / 100).toFixed(2)}</p><p className="text-[10px] text-ink/40">~{job.estimated_minutes} min</p></div>
+                </div>
+                <div className="mt-3 flex gap-4 text-xs text-ink/45"><span>{activity.reservations} reservations</span><span>{activity.submissions} submissions</span></div>
+                <AdminJobControls jobId={job.id} published={job.published} canDelete={canDelete} />
+              </Card>
+            );
+          })}
+        </div>
+      )}
+
+      <div className="mt-10"><p className="text-xs font-bold uppercase tracking-widest text-ink/40">Quality control</p><h2 className="text-2xl font-black">Submission review</h2></div>
       <AdminReview />
 
-      <div className="mt-10 flex items-center gap-2">
-        <Activity size={20} />
-
-        <h2 className="text-xl font-black">
-          Recent activity
-        </h2>
-      </div>
-
+      <div className="mt-10 flex items-center gap-2"><Activity size={20} /><h2 className="text-xl font-black">Recent activity</h2></div>
       <div className="mt-3 space-y-3">
-        {activities &&
-        activities.length >
-          0 ? (
-          activities.map(
-            (event) => (
-              <Card
-                key={event.id}
-                className="p-4"
-              >
-                <div className="flex items-start gap-3">
-                  <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-mint/20">
-                    <LogIn
-                      size={18}
-                    />
-                  </div>
-
-                  <div>
-                    <p className="font-black">
-                      {getUserName(
-                        event.user_id
-                      )}
-                    </p>
-
-                    <p className="text-sm text-ink/60">
-                      {activityLabel(
-                        event.event_type
-                      )}
-                    </p>
-
-                    <p className="mt-1 text-xs text-ink/40">
-                      {new Date(
-                        event.created_at
-                      ).toLocaleString(
-                        params.locale ===
-                          "hr"
-                          ? "hr-HR"
-                          : "en-GB"
-                      )}
-                    </p>
-                  </div>
-                </div>
-              </Card>
-            )
-          )
-        ) : (
-          <Card className="p-4">
-            <p className="text-sm text-ink/50">
-              No activity
-              recorded yet.
-            </p>
-          </Card>
-        )}
+        {(activities as ActivityRow[] | null)?.length ? (activities as ActivityRow[]).map((event) => (
+          <Card key={event.id} className="p-4"><div className="flex items-start gap-3"><div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-mint/20"><LogIn size={18} /></div><div><p className="font-black">{getUserName(event.user_id)}</p><p className="text-sm capitalize text-ink/60">{activityLabel(event.event_type)}</p><p className="mt-1 text-xs text-ink/40">{new Date(event.created_at).toLocaleString(params.locale === "hr" ? "hr-HR" : "en-GB")}</p></div></div></Card>
+        )) : <Card className="p-4"><p className="text-sm text-ink/50">No activity recorded yet.</p></Card>}
       </div>
 
-      <h2 className="mb-3 mt-10 text-xl font-black">
-        Registered users
-      </h2>
+      <div className="mt-10 flex items-center gap-2"><Building2 size={20} /><h2 className="text-xl font-black">Users</h2></div>
+      <div className="mt-3 space-y-3">
+        {users?.map((person) => (
+          <Card key={person.id} className="p-4">
+            <div className="flex items-start justify-between gap-4">
+              <div><p className="font-black">{person.first_name || "Incomplete profile"}</p><p className="mt-1 text-xs text-ink/45">{person.country_code || "No country"} · {person.role}</p></div>
+              <Chip className={person.banned_at ? "bg-coral/10 text-coral" : "bg-mint/20 text-ink"}>{person.banned_at ? "Suspended" : "Active"}</Chip>
+            </div>
+            <div className="mt-4 grid grid-cols-2 gap-3 border-t border-black/5 pt-3">
+              <div><p className="text-xs text-ink/45">Approved checks</p><p className="mt-1 font-black">{person.approved_jobs ?? 0}</p></div>
+              <div><p className="text-xs text-ink/45">Role</p><p className="mt-1 font-black capitalize">{person.role}</p></div>
+            </div>
+            <AdminUserControls userId={person.id} banned={Boolean(person.banned_at)} isSelf={person.id === user.id} />
+          </Card>
+        ))}
+      </div>
 
-      <div className="space-y-3">
-        {users?.map(
-          (person) => (
-            <Card
-              key={person.id}
-              className="p-4"
-            >
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <p className="font-black">
-                    {person.first_name ||
-                      "Incomplete profile"}
-                  </p>
-
-                  <p className="mt-1 text-xs text-ink/45">
-                    {person.country_code ||
-                      "No country"}{" "}
-                    ·{" "}
-                    {
-                      person.role
-                    }
-                  </p>
-                </div>
-
-                <Chip
-                  className={
-                    person.banned_at
-                      ? "bg-coral/10 text-coral"
-                      : "bg-mint/20 text-ink"
-                  }
-                >
-                  {person.banned_at
-                    ? "Banned"
-                    : "Active"}
-                </Chip>
-              </div>
-
-              <div className="mt-4 grid grid-cols-2 gap-3 border-t border-black/5 pt-3">
-                <div>
-                  <p className="text-xs text-ink/45">
-                    Approved jobs
-                  </p>
-
-                  <p className="mt-1 font-black">
-                    {person.approved_jobs ??
-                      0}
-                  </p>
-                </div>
-
-                <div>
-                  <p className="text-xs text-ink/45">
-                    Role
-                  </p>
-
-                  <p className="mt-1 font-black capitalize">
-                    {
-                      person.role
-                    }
-                  </p>
-                </div>
-              </div>
-            </Card>
-          )
-        )}
+      <div className="mt-10 rounded-3xl bg-ink p-5 text-white">
+        <p className="text-xs font-bold uppercase tracking-widest text-mint">Admin note</p>
+        <h2 className="mt-2 text-xl font-black">Keep shopper Polica simple.</h2>
+        <p className="mt-2 text-sm leading-relaxed text-white/60">Use this control center for operational complexity. Shoppers should only need nearby checks, Finish and Earnings.</p>
       </div>
     </section>
   );
