@@ -1176,13 +1176,13 @@ export function Jobs() {
     <>
       <section className="px-5 pb-5 pt-8">
         <p className="text-sm font-semibold text-ink/50">
-          Jobs available now
+          Easy ways to earn
         </p>
 
         <h1 className="mt-1 text-4xl font-black leading-[1.05]">
-          Earn nearby.
+          Earn while you're already out.
           <br />
-          Make stores better.
+          A few extra minutes during your usual shopping.
         </h1>
 
         <div className="mt-6 flex gap-2">
@@ -1244,7 +1244,7 @@ export function Jobs() {
         <div className="mb-5 flex items-end justify-between">
           <div>
             <p className="text-xs font-bold uppercase tracking-widest text-ink/40">
-              Available
+              For you
             </p>
 
             <h2 className="text-2xl font-black">
@@ -1429,7 +1429,7 @@ export function Jobs() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-[10px] font-bold uppercase tracking-widest text-mint">
-                  Active job ·{" "}
+                  Saved for this trip ·{" "}
                   {formatCountdown(
                     countdownSeconds
                   )}
@@ -1462,7 +1462,7 @@ export function Jobs() {
                 className="mr-2 inline"
                 size={16}
               />
-              Start job
+              Start quick check
             </Button>
           </Card>
         </div>
@@ -1536,7 +1536,7 @@ export function Jobs() {
                     min
                   </b>
                   <p className="text-[10px] text-ink/45">
-                    TIME
+                    EXTRA TIME
                   </p>
                 </Card>
 
@@ -1546,6 +1546,13 @@ export function Jobs() {
                     STEPS
                   </p>
                 </Card>
+              </div>
+
+              <div className="rounded-2xl bg-mint/10 p-4">
+                <p className="font-black">Easy to do while you shop</p>
+                <p className="mt-1 text-sm text-ink/55">
+                  This check is designed to add only about {detail.minutes} minutes to a normal store visit.
+                </p>
               </div>
 
               {reservationError && (
@@ -1574,8 +1581,8 @@ export function Jobs() {
                 {reservationLoading
                   ? "Reserving…"
                   : activeReservation
-                    ? "Active job already reserved"
-                    : "Reserve for 60 minutes"}
+                    ? "Already added to your trip"
+                    : "Add to my trip"}
               </Button>
             </motion.div>
           </motion.div>
