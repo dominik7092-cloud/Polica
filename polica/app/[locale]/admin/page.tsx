@@ -132,39 +132,18 @@ export default async function AdminPage({ params }: { params: { locale: string }
         <Card className="p-4"><MapPinned size={20} /><p className="mt-3 text-2xl font-black">{locationCount ?? 0}</p><p className="text-xs font-bold text-ink/45">Active locations</p></Card>
       </div>
 
-      <div className="mt-10 flex items-end justify-between gap-3">
-        <div><p className="text-xs font-bold uppercase tracking-widest text-ink/40">Operations</p><h2 className="text-2xl font-black">Campaign checks</h2></div>
-        <Link href={`/${params.locale}/client`} className="text-xs font-black underline">Create new</Link>
+      <div className="mt-10 grid gap-3">
+        <Link href={`/${params.locale}/admin/campaigns`} className="rounded-3xl bg-ink p-5 text-white">
+          <p className="text-xs font-bold uppercase tracking-widest text-mint">Campaign management</p>
+          <h2 className="mt-2 text-2xl font-black">Open campaigns</h2>
+          <p className="mt-2 text-sm text-white/60">Filter by client and status, pause campaigns, and open store-level results without scrolling through every check.</p>
+        </Link>
+        <Link href={`/${params.locale}/client`} className="rounded-3xl bg-coral p-5 text-white">
+          <p className="text-xs font-bold uppercase tracking-widest text-white/60">Quick action</p>
+          <h2 className="mt-2 text-2xl font-black">Create checks</h2>
+          <p className="mt-2 text-sm text-white/70">Use the existing multi-store creator while the new campaign creation screen is connected.</p>
+        </Link>
       </div>
-
-      {jobs.length === 0 ? (
-        <Card className="mt-4 p-6 text-center"><p className="font-black">No checks yet</p></Card>
-      ) : (
-        <div className="mt-4 space-y-3">
-          {jobs.map((job) => {
-            const store = storesById.get(job.store_id);
-            const activity = jobActivity.get(job.id) ?? { reservations: 0, submissions: 0 };
-            const canDelete = activity.reservations === 0 && activity.submissions === 0;
-            return (
-              <Card key={job.id} className="p-4">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Chip className={job.published ? "bg-mint/20" : "bg-black/5 text-ink/50"}>{job.published ? "Published" : "Unpublished"}</Chip>
-                      <Chip>{job.job_type}</Chip>
-                    </div>
-                    <h3 className="mt-2 font-black">{job.title}</h3>
-                    <p className="mt-1 text-xs text-ink/45">{store?.chain || "Store"} · {store?.address || "Address unavailable"}</p>
-                  </div>
-                  <div className="text-right"><p className="text-lg font-black">€{(job.reward_cents / 100).toFixed(2)}</p><p className="text-[10px] text-ink/40">~{job.estimated_minutes} min</p></div>
-                </div>
-                <div className="mt-3 flex gap-4 text-xs text-ink/45"><span>{activity.reservations} reservations</span><span>{activity.submissions} submissions</span></div>
-                <AdminJobControls jobId={job.id} published={job.published} canDelete={canDelete} />
-              </Card>
-            );
-          })}
-        </div>
-      )}
 
       <div className="mt-10"><p className="text-xs font-bold uppercase tracking-widest text-ink/40">Quality control</p><h2 className="text-2xl font-black">Submission review</h2></div>
       <AdminReview />
