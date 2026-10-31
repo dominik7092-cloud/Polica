@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { AlertCircle, CheckCircle2, Clock, Euro, Plus, Send, Store } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { Button, Card, Chip } from "./ui";
@@ -20,6 +21,7 @@ const jobTypes = [
 ];
 
 export function CreateJob() {
+  const campaignId = useSearchParams().get("campaign");
   const [selectedLocations, setSelectedLocations] = useState<RetailLocation[]>([]);
   const [title, setTitle] = useState("");
   const [jobType, setJobType] = useState("Audit");
@@ -110,7 +112,8 @@ export function CreateJob() {
 
     setSubmitting(true);
     const client = supabase();
-    const { data, error: publishError } = await client.rpc("create_jobs_for_retail_locations", {
+    const { data, error: publishError } = await client.rpc("create_campaign_jobs_for_retail_locations", {
+      p_campaign: campaignId,
       p_location_ids: selectedLocations.map((location) => location.id),
       p_title: title.trim(),
       p_job_type: jobType,
