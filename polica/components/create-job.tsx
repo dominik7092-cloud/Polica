@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { AlertCircle, CheckCircle2, Clock, Euro, Plus, Send, Store } from "lucide-react";
 import { supabase } from "@/lib/supabase";
@@ -42,6 +42,14 @@ export function CreateJob() {
   const [error, setError] = useState("");
   const [createdCount, setCreatedCount] = useState<number | null>(null);
 
+  const selectedRetailers = useMemo(
+    () =>
+      Array.from(
+        new Set(selectedLocations.map((location) => location.retailer).filter(Boolean))
+      ).sort((a, b) => a.localeCompare(b, "hr")),
+    [selectedLocations]
+  );
+
   function buildSteps() {
     return questions
       .split("\n")
@@ -71,8 +79,12 @@ export function CreateJob() {
     setError("");
     setCreatedCount(null);
 
+    if (!campaignId) {
+      setError("Campaign ID is missing. Open this page from the campaign flow and try again.");
+      return;
+    }
     if (selectedLocations.length === 0) {
-      setError("Select at least one Konzum location.");
+      setError("Select at least one retail location.");
       return;
     }
     if (!title.trim()) {
@@ -153,7 +165,7 @@ export function CreateJob() {
         <CheckCircle2 className="mx-auto text-mint" size={50} />
         <h2 className="mt-4 text-2xl font-black">Campaign published</h2>
         <p className="mt-2 text-sm text-ink/55">
-          {createdCount} individual missions were created for selected Konzum locations.
+          {createdCount} individual missions were created for the selected retail locations.
         </p>
         <Button type="button" className="mt-5 w-full" onClick={reset}>
           <Plus className="mr-2 inline" size={18} />
@@ -171,7 +183,7 @@ export function CreateJob() {
           <h2 className="text-xl font-black">Campaign locations</h2>
         </div>
         <p className="mt-2 text-sm text-ink/50">
-          Select one or multiple Konzum locations. Polica will create one independently reservable mission for every selected store.
+          Select locations from any retailer available in Polica. Polica will create one independently reservable mission for every selected store.
         </p>
         <div className="mt-5">
           <RetailLocationMultiPicker value={selectedLocations} onChange={setSelectedLocations} />
@@ -247,6 +259,15 @@ export function CreateJob() {
       <div className="rounded-2xl bg-ink p-5 text-white">
         <p className="text-xs text-white/50">Campaign summary</p>
         <p className="mt-1 text-2xl font-black">{selectedLocations.length} locations</p>
+        {selectedRetailers.length > 0 && (
+          <div className="mt-3 flex flex-wrap gap-2">
+            {selectedRetailers.map((retailer) => (
+              <span key={retailer} className="rounded-full bg-white/10 px-3 py-1 text-xs font-bold">
+                {retailer}
+              </span>
+            ))}
+          </div>
+        )}
         <p className="mt-2 text-sm text-white/65">
           Agent rewards: €{(selectedLocations.length * (Number(reward) || 0)).toFixed(2)} if every mission is approved.
         </p>
