@@ -148,6 +148,7 @@ export function Jobs() {
   const [loadError, setLoadError] = useState("");
   const [reservationLoading, setReservationLoading] = useState<string | null>(null);
   const [reservationError, setReservationError] = useState("");
+  const [cancelLoading, setCancelLoading] = useState(false);
   const listTopRef = useRef<HTMLDivElement | null>(null);
 
   const loadJobs = useCallback(async () => {
@@ -373,6 +374,30 @@ export function Jobs() {
     });
     setSelectedStore(null);
     setReservationLoading(null);
+  }
+
+  async function cancelActiveReservation() {
+    if (!activeReservation || cancelLoading) return;
+    if (!window.confirm("Cancel this check? It will become available to other shoppers again.")) return;
+
+    setCancelLoading(true);
+    setReservationError("");
+    const client = supabase();
+    const { error } = await client.rpc("cancel_reservation", {
+      p_reservation: activeReservation.id,
+    });
+
+    if (error) {
+      setReservationError("The check could not be cancelled. Please try again.");
+      setCancelLoading(false);
+      return;
+    }
+
+    setMissionOpen(false);
+    setActiveReservation(null);
+    setCountdown(0);
+    setCancelLoading(false);
+    await loadJobs();
   }
 
   const runnerReservation: MissionRunnerReservation | null = activeReservation
@@ -637,6 +662,14 @@ export function Jobs() {
             >
               <Play className="mr-2 inline" size={16} /> Start check
             </Button>
+            <button
+              type="button"
+              disabled={cancelLoading}
+              onClick={() => void cancelActiveReservation()}
+              className="mt-2 w-full py-2 text-xs font-bold text-white/55 disabled:opacity-50"
+            >
+              {cancelLoading ? "Cancelling…" : "Cancel check"}
+            </button>
           </Card>
         </div>
       )}
