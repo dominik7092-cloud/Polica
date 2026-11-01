@@ -1,7 +1,7 @@
 import { ShoppingBag } from "lucide-react";
 
 const RETAILERS = [
-  { match: ["konzum"], name: "Konzum", logo: "/retailers/konzum.png" },
+  { match: ["konzum"], name: "Konzum", logo: "/retailers/konzum.jpg" },
   { match: ["kaufland"], name: "Kaufland", logo: "/retailers/kaufland.jpg" },
   { match: ["lidl"], name: "Lidl", logo: "/retailers/lidl.png" },
   { match: ["spar", "interspar"], name: "SPAR", logo: "/retailers/spar.png" },
