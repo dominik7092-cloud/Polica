@@ -8,16 +8,13 @@ import {
   BriefcaseBusiness,
   Building2,
   CheckCircle2,
-  Clock3,
   LogIn,
   MapPinned,
-  Plus,
-  ShieldBan,
   Users,
 } from "lucide-react";
 import { Card, Chip } from "@/components/ui";
 import { AdminReview } from "@/components/admin-review";
-import { AdminJobControls, AdminUserControls } from "@/components/admin-controls";
+import { AdminUserControls } from "@/components/admin-controls";
 
 type AdminJob = {
   id: string;
@@ -82,7 +79,6 @@ export default async function AdminPage({ params }: { params: { locale: string }
     .select("id", { count: "exact", head: true })
     .eq("active", true);
 
-  const storesById = new Map(stores.map((store) => [store.id, store]));
   const jobActivity = new Map<string, { reservations: number; submissions: number }>();
   for (const job of jobs) jobActivity.set(job.id, { reservations: 0, submissions: 0 });
   for (const reservation of reservations ?? []) {
@@ -95,7 +91,6 @@ export default async function AdminPage({ params }: { params: { locale: string }
   }
 
   const registeredUsers = users?.length ?? 0;
-  const bannedUsers = users?.filter((person) => Boolean(person.banned_at)).length ?? 0;
   const reviewCount = submissions?.filter((item) => ["submitted", "flagged"].includes(item.status)).length ?? 0;
   const payoutCount = payouts?.length ?? 0;
   const activeJobs = jobs.filter((job) => job.published).length;
@@ -113,14 +108,9 @@ export default async function AdminPage({ params }: { params: { locale: string }
   return (
     <section className="px-5 py-8">
       <p className="text-sm font-bold text-coral">Polica Admin</p>
-      <div className="flex items-end justify-between gap-4">
-        <div>
-          <h1 className="text-4xl font-black">Control center</h1>
-          <p className="mt-2 text-sm text-ink/50">Operate campaigns, checks, users, submissions and payouts.</p>
-        </div>
-        <Link href={`/${params.locale}/client`} className="shrink-0 rounded-2xl bg-coral px-4 py-3 text-xs font-black text-white">
-          <Plus className="mr-1 inline" size={15} /> Create campaign
-        </Link>
+      <div>
+        <h1 className="text-4xl font-black">Control center</h1>
+        <p className="mt-2 text-sm text-ink/50">Operate campaigns, checks, users, submissions and payouts.</p>
       </div>
 
       <div className="mt-6 grid grid-cols-2 gap-3">
@@ -136,12 +126,7 @@ export default async function AdminPage({ params }: { params: { locale: string }
         <Link href={`/${params.locale}/admin/campaigns`} className="rounded-3xl bg-ink p-5 text-white">
           <p className="text-xs font-bold uppercase tracking-widest text-mint">Campaign management</p>
           <h2 className="mt-2 text-2xl font-black">Open campaigns</h2>
-          <p className="mt-2 text-sm text-white/60">Filter by client and status, pause campaigns, and open store-level results without scrolling through every check.</p>
-        </Link>
-        <Link href={`/${params.locale}/client`} className="rounded-3xl bg-coral p-5 text-white">
-          <p className="text-xs font-bold uppercase tracking-widest text-white/60">Quick action</p>
-          <h2 className="mt-2 text-2xl font-black">Create checks</h2>
-          <p className="mt-2 text-sm text-white/70">Use the existing multi-store creator while the new campaign creation screen is connected.</p>
+          <p className="mt-2 text-sm text-white/60">Create and manage campaigns, filter by client and status, pause campaigns, and open store-level results.</p>
         </Link>
       </div>
 
