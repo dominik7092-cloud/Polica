@@ -37,19 +37,18 @@ type RetailLocation = {
   longitude: number;
 };
 
-const RETAILERS = [
+const retailers = [
   "Konzum",
   "Kaufland",
   "Lidl",
   "SPAR",
-  "INTERSPAR",
   "Studenac",
   "Plodine",
   "Tommy",
   "INA",
   "Petrol",
   "Tisak",
-] as const;
+]; as const;
 
 const shoppingMissions = [
   { value: "main_shop", label: "Main shop", description: "Large grocery shopping", icon: ShoppingCart },
