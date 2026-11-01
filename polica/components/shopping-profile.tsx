@@ -43,6 +43,7 @@ const retailers = [
   "Lidl",
   "SPAR",
   "Studenac",
+  "DM",
   "Plodine",
   "Tommy",
   "INA",
