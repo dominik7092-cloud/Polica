@@ -122,11 +122,20 @@ export default async function AdminPage({ params }: { params: { locale: string }
         <Card className="p-4"><MapPinned size={20} /><p className="mt-3 text-2xl font-black">{locationCount ?? 0}</p><p className="text-xs font-bold text-ink/45">Active locations</p></Card>
       </div>
 
-      <div className="mt-10 grid gap-3">
+      <div className="mt-10 grid gap-3 md:grid-cols-2">
         <Link href={`/${params.locale}/admin/campaigns`} className="rounded-3xl bg-ink p-5 text-white">
           <p className="text-xs font-bold uppercase tracking-widest text-mint">Campaign management</p>
           <h2 className="mt-2 text-2xl font-black">Open campaigns</h2>
           <p className="mt-2 text-sm text-white/60">Create and manage campaigns, filter by client and status, pause campaigns, and open store-level results.</p>
+        </Link>
+
+        <Link href={`/${params.locale}/admin/map`} className="rounded-3xl bg-mint p-5 text-ink">
+          <div className="flex items-center gap-2">
+            <MapPinned size={20} />
+            <p className="text-xs font-bold uppercase tracking-widest">Retail network</p>
+          </div>
+          <h2 className="mt-2 text-2xl font-black">Open retail map</h2>
+          <p className="mt-2 text-sm text-ink/60">Explore active Croatian store locations by retailer, city and address.</p>
         </Link>
       </div>
 
