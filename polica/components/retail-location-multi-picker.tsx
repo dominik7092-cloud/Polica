@@ -42,35 +42,48 @@ export function RetailLocationMultiPicker({
       setError("");
 
       const client = supabase();
-      const { data, error: loadError } = await client
-        .from("retail_locations")
-        .select(`
-          id,
-          retailer,
-          external_store_id,
-          store_name,
-          store_format,
-          address,
-          postal_code,
-          city,
-          country_code,
-          latitude,
-          longitude,
-          seasonal
-        `)
-        .eq("active", true)
-        .eq("country_code", "HR")
-        .order("retailer", { ascending: true })
-        .order("city", { ascending: true })
-        .order("store_name", { ascending: true });
+      const pageSize = 1000;
+      let from = 0;
+      let allLocations: RetailLocation[] = [];
 
-      if (loadError) {
-        setError(loadError.message);
-        setLoading(false);
-        return;
+      while (true) {
+        const { data, error: loadError } = await client
+          .from("retail_locations")
+          .select(`
+            id,
+            retailer,
+            external_store_id,
+            store_name,
+            store_format,
+            address,
+            postal_code,
+            city,
+            country_code,
+            latitude,
+            longitude,
+            seasonal
+          `)
+          .eq("active", true)
+          .eq("country_code", "HR")
+          .order("retailer", { ascending: true })
+          .order("city", { ascending: true })
+          .order("store_name", { ascending: true })
+          .range(from, from + pageSize - 1);
+
+        if (loadError) {
+          setError(loadError.message);
+          setLoading(false);
+          return;
+        }
+
+        const page = (data ?? []) as RetailLocation[];
+        allLocations = [...allLocations, ...page];
+
+        if (page.length < pageSize) break;
+        from += pageSize;
       }
 
-      setLocations((data ?? []) as RetailLocation[]);
+      setLocations(allLocations);
       setLoading(false);
     }
 
