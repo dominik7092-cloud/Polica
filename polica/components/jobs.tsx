@@ -409,6 +409,7 @@ export function Jobs() {
           title: activeReservation.job.title,
           chain: activeReservation.job.chain,
           address: activeReservation.job.address,
+          reward: activeReservation.job.reward,
           steps: activeReservation.job.steps,
         },
       }
