@@ -30,6 +30,7 @@ export function RetailLocationMultiPicker({
   maxSelected?: number;
 }) {
   const [locations, setLocations] = useState<RetailLocation[]>([]);
+  const [retailer, setRetailer] = useState("All retailers");
   const [city, setCity] = useState("All cities");
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
@@ -37,6 +38,9 @@ export function RetailLocationMultiPicker({
 
   useEffect(() => {
     async function load() {
+      setLoading(true);
+      setError("");
+
       const client = supabase();
       const { data, error: loadError } = await client
         .from("retail_locations")
@@ -54,8 +58,9 @@ export function RetailLocationMultiPicker({
           longitude,
           seasonal
         `)
-        .eq("retailer", "Konzum")
         .eq("active", true)
+        .eq("country_code", "HR")
+        .order("retailer", { ascending: true })
         .order("city", { ascending: true })
         .order("store_name", { ascending: true });
 
@@ -72,21 +77,64 @@ export function RetailLocationMultiPicker({
     void load();
   }, []);
 
-  const cities = useMemo(
-    () => ["All cities", ...Array.from(new Set(locations.map((item) => item.city))).sort()],
+  const retailers = useMemo(
+    () => [
+      "All retailers",
+      ...Array.from(
+        new Set(
+          locations
+            .map((item) => item.retailer)
+            .filter(Boolean)
+        )
+      ).sort((a, b) => a.localeCompare(b, "hr")),
+    ],
     [locations]
   );
 
+  const cities = useMemo(() => {
+    const retailerLocations =
+      retailer === "All retailers"
+        ? locations
+        : locations.filter((item) => item.retailer === retailer);
+
+    return [
+      "All cities",
+      ...Array.from(
+        new Set(
+          retailerLocations
+            .map((item) => item.city)
+            .filter(Boolean)
+        )
+      ).sort((a, b) => a.localeCompare(b, "hr")),
+    ];
+  }, [locations, retailer]);
+
+  useEffect(() => {
+    setCity("All cities");
+  }, [retailer]);
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return locations.filter((item) => {
-      const matchesCity = city === "All cities" || item.city === city;
-      const text = `${item.store_name} ${item.store_format ?? ""} ${item.address} ${item.city} ${item.external_store_id}`.toLowerCase();
-      return matchesCity && (!q || text.includes(q));
-    });
-  }, [locations, city, query]);
 
-  const selectedIds = useMemo(() => new Set(value.map((item) => item.id)), [value]);
+    return locations.filter((item) => {
+      const matchesRetailer =
+        retailer === "All retailers" || item.retailer === retailer;
+
+      const matchesCity =
+        city === "All cities" || item.city === city;
+
+      const text = `${item.retailer} ${item.store_name} ${
+        item.store_format ?? ""
+      } ${item.address} ${item.city} ${item.external_store_id}`.toLowerCase();
+
+      return matchesRetailer && matchesCity && (!q || text.includes(q));
+    });
+  }, [locations, retailer, city, query]);
+
+  const selectedIds = useMemo(
+    () => new Set(value.map((item) => item.id)),
+    [value]
+  );
 
   function toggle(location: RetailLocation) {
     if (selectedIds.has(location.id)) {
@@ -101,16 +149,48 @@ export function RetailLocationMultiPicker({
   function selectFiltered() {
     const room = maxSelected - value.length;
     if (room <= 0) return;
-    const additions = filtered.filter((item) => !selectedIds.has(item.id)).slice(0, room);
+
+    const additions = filtered
+      .filter((item) => !selectedIds.has(item.id))
+      .slice(0, room);
+
     onChange([...value, ...additions]);
   }
 
-  if (loading) return <Card className="p-5 text-center font-bold">Loading Konzum locations…</Card>;
-  if (error) return <Card className="p-5 text-sm text-coral">Could not load locations: {error}</Card>;
+  if (loading) {
+    return (
+      <Card className="p-5 text-center font-bold">
+        Loading retail locations…
+      </Card>
+    );
+  }
+
+  if (error) {
+    return (
+      <Card className="p-5 text-sm text-coral">
+        Could not load locations: {error}
+      </Card>
+    );
+  }
 
   return (
     <div>
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid gap-3 sm:grid-cols-3">
+        <label>
+          <span className="text-sm font-bold">Retailer</span>
+          <select
+            value={retailer}
+            onChange={(event) => setRetailer(event.target.value)}
+            className="mt-2 w-full rounded-2xl border border-black/10 bg-white px-4 py-4 outline-none focus:border-mint"
+          >
+            {retailers.map((item) => (
+              <option key={item} value={item}>
+                {item}
+              </option>
+            ))}
+          </select>
+        </label>
+
         <label>
           <span className="text-sm font-bold">City</span>
           <select
@@ -118,7 +198,11 @@ export function RetailLocationMultiPicker({
             onChange={(event) => setCity(event.target.value)}
             className="mt-2 w-full rounded-2xl border border-black/10 bg-white px-4 py-4 outline-none focus:border-mint"
           >
-            {cities.map((item) => <option key={item} value={item}>{item}</option>)}
+            {cities.map((item) => (
+              <option key={item} value={item}>
+                {item}
+              </option>
+            ))}
           </select>
         </label>
 
@@ -129,7 +213,7 @@ export function RetailLocationMultiPicker({
             <input
               value={query}
               onChange={(event) => setQuery(event.target.value)}
-              placeholder="Name, address or ID"
+              placeholder="Retailer, name, address or ID"
               className="w-full bg-transparent py-4 outline-none"
             />
           </div>
@@ -137,14 +221,26 @@ export function RetailLocationMultiPicker({
       </div>
 
       <div className="mt-3 flex items-center justify-between gap-3">
-        <p className="text-xs font-semibold text-ink/40">{filtered.length} matching · {value.length} selected</p>
+        <p className="text-xs font-semibold text-ink/40">
+          {filtered.length} matching · {value.length} selected
+        </p>
+
         <div className="flex gap-2">
           {value.length > 0 && (
-            <Button type="button" className="bg-white px-3 py-2 text-xs text-ink shadow-sm" onClick={() => onChange([])}>
+            <Button
+              type="button"
+              className="bg-white px-3 py-2 text-xs text-ink shadow-sm"
+              onClick={() => onChange([])}
+            >
               Clear
             </Button>
           )}
-          <Button type="button" className="px-3 py-2 text-xs" onClick={selectFiltered}>
+
+          <Button
+            type="button"
+            className="px-3 py-2 text-xs"
+            onClick={selectFiltered}
+          >
             Select shown
           </Button>
         </div>
@@ -153,35 +249,63 @@ export function RetailLocationMultiPicker({
       <div className="mt-3 max-h-[420px] space-y-2 overflow-y-auto pr-1">
         {filtered.map((location) => {
           const selected = selectedIds.has(location.id);
+
           return (
             <button
               type="button"
               key={location.id}
               onClick={() => toggle(location)}
-              className={`w-full rounded-2xl border p-4 text-left ${selected ? "border-mint bg-mint/10" : "border-black/5 bg-white"}`}
+              className={`w-full rounded-2xl border p-4 text-left ${
+                selected
+                  ? "border-mint bg-mint/10"
+                  : "border-black/5 bg-white"
+              }`}
             >
               <div className="flex items-start gap-3">
-                <div className={`grid h-10 w-10 shrink-0 place-items-center rounded-full ${selected ? "bg-mint text-ink" : "bg-cream"}`}>
+                <div
+                  className={`grid h-10 w-10 shrink-0 place-items-center rounded-full ${
+                    selected ? "bg-mint text-ink" : "bg-cream"
+                  }`}
+                >
                   {selected ? <Check size={18} /> : <Store size={18} />}
                 </div>
+
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <p className="font-black">{location.store_name}</p>
-                    {location.store_format && <Chip>{location.store_format}</Chip>}
-                    {location.seasonal && <Chip className="bg-amber-100">Seasonal</Chip>}
+                    <Chip className="bg-mint/10">{location.retailer}</Chip>
+                    {location.store_format && (
+                      <Chip>{location.store_format}</Chip>
+                    )}
+                    {location.seasonal && (
+                      <Chip className="bg-amber-100">Seasonal</Chip>
+                    )}
                   </div>
-                  <p className="mt-1 text-xs text-ink/50">{location.address}, {location.city}</p>
-                  <p className="mt-1 text-[10px] text-ink/35">Store ID {location.external_store_id}</p>
+
+                  <p className="mt-1 text-xs text-ink/50">
+                    {location.address}, {location.city}
+                  </p>
+
+                  <p className="mt-1 text-[10px] text-ink/35">
+                    Store ID {location.external_store_id}
+                  </p>
                 </div>
               </div>
             </button>
           );
         })}
+
+        {filtered.length === 0 && (
+          <Card className="p-5 text-center text-sm text-ink/45">
+            No active locations match these filters.
+          </Card>
+        )}
       </div>
 
       {value.length > 0 && (
         <div className="mt-4 rounded-2xl bg-mint/10 p-4">
           <p className="font-black">{value.length} locations selected</p>
+
           <div className="mt-3 flex max-h-28 flex-wrap gap-2 overflow-y-auto">
             {value.map((location) => (
               <button
@@ -190,7 +314,7 @@ export function RetailLocationMultiPicker({
                 onClick={() => toggle(location)}
                 className="flex items-center gap-1 rounded-full bg-white px-3 py-2 text-xs font-bold"
               >
-                {location.store_name}
+                {location.retailer} · {location.store_name}
                 <X size={12} />
               </button>
             ))}
