@@ -5,8 +5,8 @@ import {
   ArrowDownToLine,
   CheckCircle2,
   Clock3,
-  Coins,
-  CreditCard,
+  Landmark,
+  LockKeyhole,
   X,
 } from "lucide-react";
 import { Button, Card, Chip } from "./ui";
@@ -32,6 +32,7 @@ export function EarningsClient({
   const [method, setMethod] = useState<"revolut" | "paypal" | null>(null);
 
   const minimumCashOut = 10;
+  const amountUntilCashOut = Math.max(0, minimumCashOut - available);
   const canCashOut = available >= minimumCashOut;
 
   return (
@@ -40,23 +41,22 @@ export function EarningsClient({
       <h1 className="text-4xl font-black">Earnings</h1>
 
       <Card className="mt-6 bg-ink p-6 text-white">
-        <div className="flex items-center justify-between">
-          <p className="text-sm text-white/55">Available</p>
-          <Coins className="text-mint" size={23} />
-        </div>
+        <p className="text-xs font-bold uppercase tracking-widest text-white/45">
+          Available to cash out
+        </p>
 
-        <p className="mt-1 text-5xl font-black">€{available.toFixed(2)}</p>
-
-        <div className="mt-5 flex items-center justify-between border-t border-white/10 pt-4">
-          <span className="text-sm text-white/65">Pending review</span>
-          <b>€{pending.toFixed(2)}</b>
-        </div>
+        <p className="mt-2 text-5xl font-black tracking-tight">
+          €{available.toFixed(2)}
+        </p>
 
         <Button
           type="button"
           disabled={!canCashOut}
-          className="mt-5 w-full bg-mint text-ink"
-          onClick={() => setCashOutOpen(true)}
+          className="mt-6 w-full bg-mint py-4 text-ink"
+          onClick={() => {
+            setMethod(null);
+            setCashOutOpen(true);
+          }}
         >
           <ArrowDownToLine className="mr-2 inline" size={18} />
           Cash out
@@ -64,13 +64,37 @@ export function EarningsClient({
 
         <p className="mt-3 text-center text-[11px] text-white/45">
           {canCashOut
-            ? "Choose Revolut or PayPal"
-            : `€${Math.max(0, minimumCashOut - available).toFixed(2)} more until cash out`}
+            ? "Minimum cash out reached"
+            : `€${amountUntilCashOut.toFixed(2)} more until the €${minimumCashOut.toFixed(2)} minimum`}
+        </p>
+      </Card>
+
+      <Card className="mt-3 p-4 shadow-none">
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-widest text-ink/40">
+              Pending review
+            </p>
+            <p className="mt-1 text-2xl font-black">€{pending.toFixed(2)}</p>
+          </div>
+
+          <div className="grid h-11 w-11 place-items-center rounded-full bg-amber-100 text-amber-600">
+            <Clock3 size={21} />
+          </div>
+        </div>
+
+        <p className="mt-3 text-xs leading-relaxed text-ink/45">
+          Pending earnings are not available to cash out until the related checks are approved.
         </p>
       </Card>
 
       <div className="mb-3 mt-8 flex items-end justify-between">
-        <h2 className="text-xl font-black">Recent earnings</h2>
+        <div>
+          <p className="text-xs font-bold uppercase tracking-widest text-ink/40">
+            Activity
+          </p>
+          <h2 className="text-xl font-black">Recent earnings</h2>
+        </div>
         <span className="text-xs font-bold text-ink/40">
           {entries.length} {entries.length === 1 ? "entry" : "entries"}
         </span>
@@ -78,10 +102,10 @@ export function EarningsClient({
 
       {entries.length === 0 ? (
         <Card className="p-7 text-center">
-          <Coins className="mx-auto text-ink/20" size={40} />
-          <h3 className="mt-3 font-black">No earnings yet</h3>
-          <p className="mt-2 text-sm text-ink/50">
-            Approved quick checks will appear here.
+          <Landmark className="mx-auto text-ink/20" size={40} />
+          <h3 className="mt-3 font-black">Nothing here yet</h3>
+          <p className="mt-2 text-sm leading-relaxed text-ink/50">
+            Finish a nearby check. Approved rewards will appear here and move into Available earnings.
           </p>
         </Card>
       ) : (
@@ -89,32 +113,35 @@ export function EarningsClient({
           {entries.map((entry) => {
             const availableEntry = entry.status === "available";
             return (
-              <Card key={entry.id} className="flex items-center justify-between gap-4 p-4">
-                <div className="flex min-w-0 gap-3">
-                  <div
-                    className={`grid h-10 w-10 shrink-0 place-items-center rounded-full ${
-                      availableEntry
-                        ? "bg-mint/20 text-mint"
-                        : "bg-amber-100 text-amber-600"
-                    }`}
-                  >
-                    {availableEntry ? <CheckCircle2 size={20} /> : <Clock3 size={20} />}
-                  </div>
+              <Card key={entry.id} className="p-4">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex min-w-0 gap-3">
+                    <div
+                      className={`grid h-10 w-10 shrink-0 place-items-center rounded-full ${
+                        availableEntry
+                          ? "bg-mint/15 text-mint"
+                          : "bg-amber-100 text-amber-600"
+                      }`}
+                    >
+                      {availableEntry ? <CheckCircle2 size={20} /> : <Clock3 size={20} />}
+                    </div>
 
-                  <div className="min-w-0">
-                    <p className="truncate font-bold">{entry.title}</p>
-                    <div className="mt-1 flex items-center gap-2">
-                      <Chip className={availableEntry ? "bg-mint/15 px-2 py-1" : "bg-amber-100 px-2 py-1"}>
-                        {availableEntry ? "Available" : "Pending"}
-                      </Chip>
-                      <span className="text-[10px] text-ink/35">{entry.date}</span>
+                    <div className="min-w-0">
+                      <p className="font-black leading-tight">{entry.title}</p>
+                      <p className="mt-1 text-xs text-ink/40">{entry.date}</p>
                     </div>
                   </div>
+
+                  <p className={`shrink-0 text-xl font-black ${availableEntry ? "text-mint" : "text-ink/55"}`}>
+                    +€{entry.amount.toFixed(2)}
+                  </p>
                 </div>
 
-                <p className="shrink-0 text-lg font-black text-mint">
-                  +€{entry.amount.toFixed(2)}
-                </p>
+                <div className="mt-3 pl-[52px]">
+                  <Chip className={availableEntry ? "bg-mint/15 px-2 py-1" : "bg-amber-100 px-2 py-1"}>
+                    {availableEntry ? "Available" : "Pending review"}
+                  </Chip>
+                </div>
               </Card>
             );
           })}
@@ -137,8 +164,10 @@ export function EarningsClient({
             </button>
 
             <p className="text-xs font-bold uppercase tracking-widest text-mint">Cash out</p>
-            <h2 className="mt-2 pr-10 text-3xl font-black">€{available.toFixed(2)}</h2>
-            <p className="mt-2 text-sm text-ink/50">Where should Polica send your earnings?</p>
+            <h2 className="mt-2 pr-10 text-4xl font-black">€{available.toFixed(2)}</h2>
+            <p className="mt-2 text-sm text-ink/50">
+              Choose where you would like Polica to send your available earnings once payouts are enabled.
+            </p>
 
             <div className="mt-5 space-y-3">
               <button
@@ -149,10 +178,11 @@ export function EarningsClient({
                 }`}
               >
                 <div className="grid h-11 w-11 place-items-center rounded-full bg-ink text-sm font-black text-white">R</div>
-                <div>
+                <div className="flex-1">
                   <p className="font-black">Revolut</p>
-                  <p className="text-xs text-ink/45">Cash out to Revolut</p>
+                  <p className="text-xs text-ink/45">Payout option</p>
                 </div>
+                {method === "revolut" && <CheckCircle2 className="text-mint" size={20} />}
               </button>
 
               <button
@@ -163,21 +193,29 @@ export function EarningsClient({
                 }`}
               >
                 <div className="grid h-11 w-11 place-items-center rounded-full bg-[#0070ba] text-sm font-black text-white">P</div>
-                <div>
+                <div className="flex-1">
                   <p className="font-black">PayPal</p>
-                  <p className="text-xs text-ink/45">Cash out to PayPal</p>
+                  <p className="text-xs text-ink/45">Payout option</p>
                 </div>
+                {method === "paypal" && <CheckCircle2 className="text-mint" size={20} />}
               </button>
             </div>
 
-            <Button type="button" disabled={!method} className="mt-5 w-full bg-coral">
-              <CreditCard className="mr-2 inline" size={18} />
-              Continue
-            </Button>
+            <div className="mt-5 rounded-2xl bg-cream p-4">
+              <div className="flex gap-3">
+                <LockKeyhole className="mt-0.5 shrink-0 text-ink/45" size={18} />
+                <div>
+                  <p className="font-black">Payouts are not enabled yet</p>
+                  <p className="mt-1 text-xs leading-relaxed text-ink/45">
+                    Your earnings remain in Polica. No money will be sent from this screen until the payout service is connected.
+                  </p>
+                </div>
+              </div>
+            </div>
 
-            <p className="mt-3 text-center text-[11px] leading-relaxed text-ink/40">
-              Payout setup is not connected yet. For now, this screen only prepares the simple user experience.
-            </p>
+            <Button type="button" disabled className="mt-5 w-full bg-ink text-white opacity-45">
+              Payout coming soon
+            </Button>
           </div>
         </div>
       )}
