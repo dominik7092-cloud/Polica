@@ -108,7 +108,6 @@ export function ShoppingProfile({ locale }: { locale: string }) {
     setLocationSearch("");
     setLocations([]);
     setError("");
-
     if (!chain) return;
 
     async function loadLocations() {
@@ -138,9 +137,7 @@ export function ShoppingProfile({ locale }: { locale: string }) {
     const query = locationSearch.trim().toLowerCase();
     if (!query) return locations.slice(0, 50);
     return locations
-      .filter((location) =>
-        `${location.city} ${location.address}`.toLowerCase().includes(query)
-      )
+      .filter((location) => `${location.city} ${location.address}`.toLowerCase().includes(query))
       .slice(0, 50);
   }, [locations, locationSearch]);
 
@@ -148,24 +145,21 @@ export function ShoppingProfile({ locale }: { locale: string }) {
 
   async function addStore() {
     setError("");
-
     if (savedStores.length >= 5) {
       setError("You can save up to 5 stores.");
       return;
     }
-
     if (!chain || !selectedLocation) {
       setError("Choose a retailer and one of its stores.");
       return;
     }
 
+    const fullAddress = `${selectedLocation.address}, ${selectedLocation.city}`;
     const duplicate = savedStores.some(
       (store) =>
         store.chain.trim().toLowerCase() === selectedLocation.retailer.trim().toLowerCase() &&
-        store.address.trim().toLowerCase() ===
-          `${selectedLocation.address}, ${selectedLocation.city}`.trim().toLowerCase()
+        store.address.trim().toLowerCase() === fullAddress.trim().toLowerCase()
     );
-
     if (duplicate) {
       setError("This store is already in your list.");
       return;
@@ -179,9 +173,7 @@ export function ShoppingProfile({ locale }: { locale: string }) {
       return;
     }
 
-    const fullAddress = `${selectedLocation.address}, ${selectedLocation.city}`;
     const storeName = `${selectedLocation.retailer} · ${selectedLocation.city}`;
-
     const { data, error: saveError } = await client
       .from("agent_store_preferences")
       .insert({
@@ -223,7 +215,6 @@ export function ShoppingProfile({ locale }: { locale: string }) {
       setError(deleteError.message);
       return;
     }
-
     setSavedStores((current) => current.filter((store) => store.id !== id));
   }
 
@@ -264,9 +255,7 @@ export function ShoppingProfile({ locale }: { locale: string }) {
           <div>
             <p className="text-xs font-bold uppercase tracking-widest text-mint">Stores I shop at</p>
             <h2 className="mt-1 text-2xl font-black">Choose up to 5 stores</h2>
-            <p className="mt-2 text-sm leading-relaxed text-ink/55">
-              Choose the retailer first, then select one of its loaded store locations. No map or manual address entry is needed.
-            </p>
+            <p className="mt-2 text-sm leading-relaxed text-ink/55">Choose the retailer first, then select one of its loaded store locations.</p>
           </div>
           <Chip>{savedStores.length}/5</Chip>
         </div>
@@ -284,12 +273,7 @@ export function ShoppingProfile({ locale }: { locale: string }) {
                     <p className="mt-1 text-xs text-ink/40">{store.address}</p>
                   </div>
                 </div>
-                <button
-                  type="button"
-                  aria-label="Remove store"
-                  onClick={() => void removeStore(store.id)}
-                  className="rounded-full bg-coral/10 p-2 text-coral"
-                >
+                <button type="button" aria-label="Remove store" onClick={() => void removeStore(store.id)} className="rounded-full bg-coral/10 p-2 text-coral">
                   <Trash2 size={16} />
                 </button>
               </div>
@@ -306,56 +290,37 @@ export function ShoppingProfile({ locale }: { locale: string }) {
         <>
           <Card className="mt-4 p-5">
             <h3 className="text-xl font-black">Add a store</h3>
-
             <label className="mt-5 block">
               <span className="text-sm font-bold">1. Choose retailer</span>
-              <select
-                value={chain}
-                onChange={(event) => setChain(event.target.value)}
-                className="mt-2 w-full rounded-2xl border border-black/10 bg-white px-4 py-4 outline-none focus:border-mint"
-              >
+              <select value={chain} onChange={(event) => setChain(event.target.value)} className="mt-2 w-full rounded-2xl border border-black/10 bg-white px-4 py-4 outline-none focus:border-mint">
                 <option value="">Select retailer</option>
-                {RETAILERS.map((retailer) => <option key={retailer} value={retailer}>{retailer}</option>)}
+                {retailers.map((retailer) => (
+                  <option key={retailer} value={retailer}>{retailer}</option>
+                ))}
               </select>
             </label>
 
             {chain && (
               <div className="mt-5">
                 <span className="text-sm font-bold">2. Choose store</span>
-
                 {locationsLoading ? (
                   <div className="mt-2 rounded-2xl bg-cream p-4 text-sm font-bold">Loading {chain} stores…</div>
                 ) : locations.length === 0 ? (
                   <div className="mt-2 rounded-2xl bg-cream p-4">
                     <p className="font-black">No {chain} stores loaded yet</p>
-                    <p className="mt-1 text-xs leading-relaxed text-ink/45">
-                      Once a {chain} location master is imported into retail_locations, its stores will automatically appear here.
-                    </p>
+                    <p className="mt-1 text-xs leading-relaxed text-ink/45">Once a {chain} location master is imported, its stores will automatically appear here.</p>
                   </div>
                 ) : (
                   <>
                     <label className="mt-2 flex items-center gap-2 rounded-2xl border border-black/10 bg-white px-4">
                       <Search size={17} className="text-ink/40" />
-                      <input
-                        value={locationSearch}
-                        onChange={(event) => setLocationSearch(event.target.value)}
-                        placeholder={`Search ${chain} by city or address`}
-                        className="w-full bg-transparent py-4 outline-none"
-                      />
+                      <input value={locationSearch} onChange={(event) => setLocationSearch(event.target.value)} placeholder={`Search ${chain} by city or address`} className="w-full bg-transparent py-4 outline-none" />
                     </label>
-
                     <div className="mt-3 max-h-72 space-y-2 overflow-y-auto rounded-2xl bg-cream p-2">
                       {filteredLocations.map((location) => {
                         const selected = selectedLocationId === location.id;
                         return (
-                          <button
-                            type="button"
-                            key={location.id}
-                            onClick={() => setSelectedLocationId(location.id)}
-                            className={`flex w-full items-start gap-3 rounded-2xl p-3 text-left ${
-                              selected ? "bg-mint/20 ring-1 ring-mint" : "bg-white"
-                            }`}
-                          >
+                          <button type="button" key={location.id} onClick={() => setSelectedLocationId(location.id)} className={`flex w-full items-start gap-3 rounded-2xl p-3 text-left ${selected ? "bg-mint/20 ring-1 ring-mint" : "bg-white"}`}>
                             <MapPin className="mt-0.5 shrink-0 text-mint" size={17} />
                             <div>
                               <p className="font-black">{location.city}</p>
@@ -364,10 +329,7 @@ export function ShoppingProfile({ locale }: { locale: string }) {
                           </button>
                         );
                       })}
-
-                      {filteredLocations.length === 0 && (
-                        <p className="p-4 text-center text-sm text-ink/45">No matching stores.</p>
-                      )}
+                      {filteredLocations.length === 0 && <p className="p-4 text-center text-sm text-ink/45">No matching stores.</p>}
                     </div>
                   </>
                 )}
@@ -378,21 +340,13 @@ export function ShoppingProfile({ locale }: { locale: string }) {
           {selectedLocation && (
             <Card className="mt-4 p-5">
               <h3 className="text-xl font-black">Your routine</h3>
-
               <p className="mt-4 text-sm font-bold">Why do you visit this store?</p>
               <div className="mt-3 grid grid-cols-2 gap-2">
                 {shoppingMissions.map((mission) => {
                   const Icon = mission.icon;
                   const selected = shoppingMission === mission.value;
                   return (
-                    <button
-                      type="button"
-                      key={mission.value}
-                      onClick={() => setShoppingMission(mission.value)}
-                      className={`rounded-2xl border p-4 text-left ${
-                        selected ? "border-mint bg-mint/15" : "border-black/10 bg-white"
-                      }`}
-                    >
+                    <button type="button" key={mission.value} onClick={() => setShoppingMission(mission.value)} className={`rounded-2xl border p-4 text-left ${selected ? "border-mint bg-mint/15" : "border-black/10 bg-white"}`}>
                       <Icon size={20} />
                       <p className="mt-3 font-black">{mission.label}</p>
                       <p className="mt-1 text-xs text-ink/45">{mission.description}</p>
@@ -400,22 +354,14 @@ export function ShoppingProfile({ locale }: { locale: string }) {
                   );
                 })}
               </div>
-
               <p className="mt-6 text-sm font-bold">How often?</p>
               <div className="mt-3 flex flex-wrap gap-2">
                 {frequencies.map((frequency) => (
-                  <button
-                    type="button"
-                    key={frequency.value}
-                    onClick={() => setVisitFrequency(frequency.value)}
-                  >
-                    <Chip className={visitFrequency === frequency.value ? "bg-ink text-white" : "bg-cream"}>
-                      {frequency.label}
-                    </Chip>
+                  <button type="button" key={frequency.value} onClick={() => setVisitFrequency(frequency.value)}>
+                    <Chip className={visitFrequency === frequency.value ? "bg-ink text-white" : "bg-cream"}>{frequency.label}</Chip>
                   </button>
                 ))}
               </div>
-
               <Button type="button" disabled={saving} className="mt-6 w-full" onClick={() => void addStore()}>
                 <Plus className="mr-2 inline" size={18} />
                 {saving ? "Saving…" : "Add to my stores"}
@@ -427,13 +373,8 @@ export function ShoppingProfile({ locale }: { locale: string }) {
 
       {error && <div className="mt-4 rounded-2xl bg-coral/10 p-4 text-sm font-semibold text-coral">{error}</div>}
 
-      <Button type="button" className="mt-5 w-full bg-coral py-4" onClick={finish}>
-        Done
-      </Button>
-
-      <p className="mt-3 text-center text-xs leading-relaxed text-ink/40">
-        Store choices are saved only when you add them. Polica does not continuously track your location.
-      </p>
+      <Button type="button" className="mt-5 w-full bg-coral py-4" onClick={finish}>Done</Button>
+      <p className="mt-3 text-center text-xs leading-relaxed text-ink/40">Store choices are saved only when you add them. Polica does not continuously track your location.</p>
     </div>
   );
 }
