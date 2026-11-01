@@ -48,7 +48,7 @@ const retailers = [
   "INA",
   "Petrol",
   "Tisak",
-]; as const;
+] as const;
 
 const shoppingMissions = [
   { value: "main_shop", label: "Main shop", description: "Large grocery shopping", icon: ShoppingCart },
