@@ -116,7 +116,7 @@ export async function GET(
     folder?.file(`${submission.id}.jpg`, bytes);
   }
 
-  const output = await zip.generateAsync({ type: "uint8array", compression: "DEFLATE" });
+  const output = await zip.generateAsync({ type: "arraybuffer", compression: "DEFLATE" });
   const filename = `${safeName(company?.name ?? "Client")}_${safeName(campaign.name)}.zip`;
 
   return new NextResponse(output, {
