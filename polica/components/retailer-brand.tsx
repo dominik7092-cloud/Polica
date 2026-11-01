@@ -37,6 +37,11 @@ const RETAILERS = [
     logo: "/retailers/tommy.png",
   },
   {
+  match: ["dm"],
+  name: "DM",
+  logo: "/retailers/dm.png",
+  },
+  {
     match: ["ina"],
     name: "INA",
     logo: "/retailers/ina.png",
