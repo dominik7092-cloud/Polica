@@ -305,14 +305,20 @@ export function Jobs() {
           .includes(normalizedQuery)
       ) continue;
 
-      const existing = grouped.get(job.storeId);
+      // Jobs from different client campaigns can create different internal store IDs
+      // for the same physical shop. Group by retailer + address so the shopper
+      // sees one shop card with all available opportunities.
+      const physicalStoreKey = `${job.chain.trim().toLowerCase()}::${job.address
+        .trim()
+        .toLowerCase()}`;
+      const existing = grouped.get(physicalStoreKey);
       if (existing) {
         existing.jobs.push(job);
         existing.totalReward += job.reward;
         existing.totalMinutes += job.minutes;
       } else {
-        grouped.set(job.storeId, {
-          storeId: job.storeId,
+        grouped.set(physicalStoreKey, {
+          storeId: physicalStoreKey,
           chain: job.chain,
           address: job.address,
           lat: job.lat,
