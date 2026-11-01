@@ -1,175 +1,178 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
+import { ArrowLeft, Building2, Image as ImageIcon, MapPin } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import {
-  ChevronRight,
-  CheckCircle2,
-  Clock3,
-  Download,
-  History,
-  Languages,
-  MapPin,
-  ShieldCheck,
-  Store,
-  Trash2,
-  XCircle,
-} from "lucide-react";
 import { Card, Chip } from "@/components/ui";
-import { ProfilePreferences } from "@/components/profile-preferences-client";
-import { LogoutButton } from "@/components/logout-button";
+import { AdminCampaignControls } from "@/components/admin-campaign-controls";
+import { AdminJobControls } from "@/components/admin-controls";
+import { AdminCampaignExportButton } from "@/components/admin-campaign-export-button";
 
-type Submission = {
-  id: string;
-  job_id: string;
-  status: string;
-  rejection_reason: string | null;
-  created_at: string;
-};
-
-type Job = { id: string; title: string; reward_cents: number };
-type RegularStore = { id: string; store_name: string; chain: string; address: string };
-
-export default async function ProfilePage({ params }: { params: { locale: string } }) {
+export default async function CampaignDetailPage({ params }: { params: { locale: string; id: string } }) {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect(`/${params.locale}/auth/login`);
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("first_name, country_code, nearby_distance_km")
+    .select("role")
     .eq("id", user.id)
     .single();
 
-  const { data: storeData } = await supabase
-    .from("agent_store_preferences")
-    .select("id, store_name, chain, address")
-    .eq("agent_id", user.id)
-    .order("created_at", { ascending: true });
-  const regularStores = (storeData ?? []) as RegularStore[];
+  if (profile?.role !== "admin") redirect(`/${params.locale}/jobs`);
 
-  const { data: submissionData } = await supabase
-    .from("submissions")
-    .select("id, job_id, status, rejection_reason, created_at")
-    .eq("agent_id", user.id)
-    .order("created_at", { ascending: false })
-    .limit(10);
-  const submissions = (submissionData ?? []) as Submission[];
+  const { data: campaign } = await supabase
+    .from("campaigns")
+    .select(`id,name,status,budget_cents,client_price_per_result_cents,target_results,starts_at,ends_at,notes,company_id,companies(name,contact_name,contact_email)`)
+    .eq("id", params.id)
+    .single();
 
-  const jobIds = Array.from(new Set(submissions.map((item) => item.job_id)));
-  let jobs: Job[] = [];
-  if (jobIds.length > 0) {
-    const { data } = await supabase
-      .from("jobs")
-      .select("id, title, reward_cents")
-      .in("id", jobIds);
-    jobs = (data ?? []) as Job[];
-  }
-  const jobsById = new Map(jobs.map((job) => [job.id, job]));
+  if (!campaign) notFound();
 
-  const firstName = profile?.first_name || "Agent";
-  const initials = firstName.slice(0, 2).toUpperCase();
-  const approved = submissions.filter((item) => item.status === "approved").length;
-  const pending = submissions.filter((item) => item.status === "submitted" || item.status === "flagged").length;
+  const { data: jobs } = await supabase
+    .from("jobs")
+    .select("id,store_id,title,job_type,reward_cents,estimated_minutes,published")
+    .eq("campaign_id", params.id)
+    .order("title");
+
+  const jobIds = (jobs ?? []).map((job) => job.id);
+  const storeIds = Array.from(new Set((jobs ?? []).map((job) => job.store_id)));
+
+  const { data: stores } = storeIds.length
+    ? await supabase.from("stores").select("id,chain,address").in("id", storeIds)
+    : { data: [] } as any;
+
+  const { data: reservations } = jobIds.length
+    ? await supabase.from("reservations").select("id,job_id").in("job_id", jobIds)
+    : { data: [] } as any;
+
+  const { data: submissions } = jobIds.length
+    ? await supabase
+        .from("submissions")
+        .select("id,job_id,status,photo_path,gps_verified,created_at")
+        .in("job_id", jobIds)
+    : { data: [] } as any;
+
+  const storeMap = new Map((stores ?? []).map((store: any) => [store.id, store]));
+  const company: any = Array.isArray((campaign as any).companies)
+    ? (campaign as any).companies[0]
+    : (campaign as any).companies;
+
+  const approved = (submissions ?? []).filter((submission: any) => submission.status === "approved").length;
+  const review = (submissions ?? []).filter((submission: any) =>
+    ["submitted", "flagged"].includes(submission.status)
+  ).length;
+  const billable = approved * campaign.client_price_per_result_cents;
+  const refund = Math.max(campaign.budget_cents - billable, 0);
 
   return (
     <section className="px-5 py-8">
-      <p className="text-sm font-bold text-ink/45">Your account</p>
-      <h1 className="text-4xl font-black">Profile</h1>
+      <Link
+        href={`/${params.locale}/admin/campaigns`}
+        className="inline-flex items-center gap-2 rounded-full bg-white px-4 py-2 text-sm font-bold shadow-sm"
+      >
+        <ArrowLeft size={16} /> Campaigns
+      </Link>
 
-      <Card className="mt-6 p-5">
-        <div className="flex items-center gap-4">
-          <div className="grid h-16 w-16 place-items-center rounded-full bg-mint text-xl font-black">{initials}</div>
-          <div className="min-w-0">
-            <h2 className="text-xl font-black">{firstName}</h2>
-            <p className="mt-1 truncate text-xs text-ink/45">{user.email}</p>
-            <p className="mt-1 text-xs text-ink/35">{profile?.country_code || "HR"}</p>
-          </div>
-        </div>
-      </Card>
-
-      <div className="mt-8">
-        <h2 className="text-xl font-black">My shopping</h2>
-        <p className="mt-1 text-sm text-ink/45">Keep Polica focused on places that are useful to you.</p>
+      <div className="mt-7 flex flex-wrap gap-2">
+        <Chip className="bg-mint/15">
+          <Building2 className="mr-1" size={12} />
+          {company?.name ?? "Client"}
+        </Chip>
+        <Chip>{campaign.status}</Chip>
       </div>
 
-      <ProfilePreferences initialDistance={profile?.nearby_distance_km ?? 5} />
+      <h1 className="mt-3 text-3xl font-black">{campaign.name}</h1>
+      {campaign.notes && <p className="mt-2 text-sm text-ink/50">{campaign.notes}</p>}
 
-      <Card className="mt-3 p-5">
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-mint/15 text-mint"><Store size={19} /></div>
-            <div>
-              <p className="font-black">Regular stores</p>
-              <p className="text-xs text-ink/45">{regularStores.length} saved</p>
-            </div>
-          </div>
-          <Link href={`/${params.locale}/profile/stores`} className="rounded-full bg-cream px-3 py-2 text-xs font-black">Manage</Link>
-        </div>
+      <div className="mt-5 grid grid-cols-2 gap-3">
+        <Card className="p-4">
+          <p className="text-xs text-ink/40">Approved</p>
+          <p className="mt-1 text-2xl font-black">{approved}</p>
+        </Card>
+        <Card className="p-4">
+          <p className="text-xs text-ink/40">Needs review</p>
+          <p className="mt-1 text-2xl font-black">{review}</p>
+        </Card>
+        <Card className="p-4">
+          <p className="text-xs text-ink/40">Billable now</p>
+          <p className="mt-1 text-2xl font-black">€{(billable / 100).toFixed(2)}</p>
+        </Card>
+        <Card className="p-4">
+          <p className="text-xs text-ink/40">Potential refund</p>
+          <p className="mt-1 text-2xl font-black">€{(refund / 100).toFixed(2)}</p>
+        </Card>
+      </div>
 
-        {regularStores.length > 0 && (
-          <div className="mt-4 space-y-2 border-t border-black/5 pt-3">
-            {regularStores.slice(0, 3).map((store) => (
-              <div key={store.id} className="flex items-start gap-2 text-sm">
-                <MapPin className="mt-0.5 shrink-0 text-mint" size={15} />
-                <div><p className="font-bold">{store.store_name}</p><p className="text-xs text-ink/40">{store.address}</p></div>
-              </div>
-            ))}
-          </div>
-        )}
-      </Card>
+      <AdminCampaignControls campaignId={campaign.id} status={campaign.status} />
+
+      <div className="mt-3 grid grid-cols-2 gap-3">
+        <Link
+          href={`/${params.locale}/admin/campaigns/${campaign.id}/pictures`}
+          className="flex items-center justify-center gap-2 rounded-2xl bg-cream px-4 py-4 text-sm font-black text-ink"
+        >
+          <ImageIcon size={16} /> Pictures
+        </Link>
+        <AdminCampaignExportButton campaignId={campaign.id} locale={params.locale} />
+      </div>
 
       <div className="mt-8 flex items-end justify-between">
         <div>
-          <h2 className="text-xl font-black">My checks</h2>
-          <p className="mt-1 text-sm text-ink/45">Your latest activity.</p>
+          <p className="text-xs font-bold uppercase tracking-widest text-ink/40">Store checks</p>
+          <h2 className="text-2xl font-black">{(jobs ?? []).length} checks</h2>
         </div>
-        <div className="flex gap-2">
-          <Chip className="bg-mint/15">{approved} approved</Chip>
-          <Chip>{pending} pending</Chip>
-        </div>
+        <Link href={`/${params.locale}/client?campaign=${campaign.id}`} className="text-xs font-black underline">
+          Add checks
+        </Link>
       </div>
 
-      {submissions.length === 0 ? (
-        <Card className="mt-3 p-6 text-center"><History className="mx-auto text-ink/20" size={34} /><p className="mt-3 font-black">No checks yet</p></Card>
-      ) : (
-        <div className="mt-3 space-y-3">
-          {submissions.map((submission) => {
-            const job = jobsById.get(submission.job_id);
-            const approvedStatus = submission.status === "approved";
-            const rejectedStatus = submission.status === "rejected";
-            const StatusIcon = approvedStatus ? CheckCircle2 : rejectedStatus ? XCircle : Clock3;
-            return (
-              <Card key={submission.id} className="p-4">
-                <div className="flex items-start gap-3">
-                  <div className={`grid h-10 w-10 shrink-0 place-items-center rounded-full ${approvedStatus ? "bg-mint/15 text-mint" : rejectedStatus ? "bg-coral/10 text-coral" : "bg-amber-100 text-amber-600"}`}>
-                    <StatusIcon size={19} />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex justify-between gap-3">
-                      <div><p className="font-black">{job?.title || "Quick check"}</p><p className="mt-1 text-xs text-ink/40">{new Date(submission.created_at).toLocaleDateString(params.locale === "hr" ? "hr-HR" : "en-GB")}</p></div>
-                      {job && <p className="shrink-0 font-black">€{(job.reward_cents / 100).toFixed(2)}</p>}
-                    </div>
-                    <Chip className={`mt-2 ${approvedStatus ? "bg-mint/15" : rejectedStatus ? "bg-coral/10 text-coral" : "bg-amber-100"}`}>
-                      {approvedStatus ? "Approved" : rejectedStatus ? "Rejected" : "Under review"}
-                    </Chip>
-                    {rejectedStatus && submission.rejection_reason && <p className="mt-3 rounded-2xl bg-coral/10 p-3 text-xs font-semibold">{submission.rejection_reason}</p>}
-                  </div>
+      <div className="mt-4 space-y-3">
+        {(jobs ?? []).map((job: any) => {
+          const store: any = storeMap.get(job.store_id);
+          const jobReservations = (reservations ?? []).filter((reservation: any) => reservation.job_id === job.id).length;
+          const jobSubmissions = (submissions ?? []).filter((submission: any) => submission.job_id === job.id);
+          const canDelete = jobReservations === 0 && jobSubmissions.length === 0;
+
+          return (
+            <Card key={job.id} className="p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="font-black">{job.title}</p>
+                  <p className="mt-1 flex items-center gap-1 text-xs text-ink/45">
+                    <MapPin size={12} />
+                    {store?.chain ?? "Store"} · {store?.address ?? ""}
+                  </p>
                 </div>
-              </Card>
-            );
-          })}
-        </div>
-      )}
+                <div className="text-right">
+                  <p className="font-black">€{(job.reward_cents / 100).toFixed(2)}</p>
+                  <p className="text-[10px] text-ink/40">~{job.estimated_minutes} min</p>
+                </div>
+              </div>
 
-      <h2 className="mb-3 mt-8 text-xl font-black">Account</h2>
-      <Card className="mb-3 flex items-center gap-3 p-4"><Languages size={20} /><div className="flex-1"><p className="font-bold">Language</p><p className="text-xs text-ink/45">{params.locale === "hr" ? "Hrvatski" : "English"}</p></div><ChevronRight size={18} /></Card>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Chip>{job.published ? "Published" : "Unpublished"}</Chip>
+                <Chip>{jobReservations} reservations</Chip>
+                <Chip>
+                  <ImageIcon className="mr-1" size={11} />
+                  {jobSubmissions.length} results
+                </Chip>
+              </div>
 
-      <LogoutButton locale={params.locale} />
+              <AdminJobControls
+                jobId={job.id}
+                published={job.published}
+                canDelete={canDelete}
+              />
+            </Card>
+          );
+        })}
 
-      <h2 className="mb-3 mt-8 text-xl font-black">Privacy & permissions</h2>
-      <Card className="mb-3 flex items-center gap-3 p-4"><ShieldCheck size={20} /><div className="flex-1"><p className="font-bold">Camera & location</p><p className="text-xs text-ink/45">Used only when needed for nearby checks and evidence.</p></div></Card>
-      <Card className="mb-3 flex items-center gap-3 p-4"><Download size={20} /><div className="flex-1"><p className="font-bold">Export my data</p><p className="text-xs text-ink/45">Data export will be enabled before public launch.</p></div><ChevronRight size={18} /></Card>
-      <Card className="mb-3 flex items-center gap-3 p-4"><Trash2 size={20} /><div className="flex-1"><p className="font-bold">Delete account</p><p className="text-xs text-ink/45">Account deletion will be enabled before public launch.</p></div><ChevronRight size={18} /></Card>
+        {(jobs ?? []).length === 0 && (
+          <Card className="p-6 text-center">
+            <p className="font-black">No checks attached yet</p>
+            <p className="mt-2 text-sm text-ink/45">Create the campaign first, then add store checks.</p>
+          </Card>
+        )}
+      </div>
     </section>
   );
 }
