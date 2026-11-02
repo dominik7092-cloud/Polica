@@ -55,6 +55,16 @@ export async function signUp(
   const client =
     createClient();
 
+  const safeLocale =
+    locale === "hr"
+      ? "hr"
+      : "en";
+
+  const emailRedirectTo =
+    safeLocale === "hr"
+      ? "https://polica.vercel.app/hr/onboarding"
+      : "https://polica.vercel.app/en/onboarding";
+
   const { error } =
     await client.auth.signUp(
       {
@@ -62,6 +72,8 @@ export async function signUp(
         password,
 
         options: {
+          emailRedirectTo,
+
           data: {
             first_name:
               firstName,
