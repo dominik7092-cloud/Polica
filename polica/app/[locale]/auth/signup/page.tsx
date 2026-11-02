@@ -5,6 +5,7 @@ import {
   Banknote,
 } from "lucide-react";
 import { signUp } from "../actions";
+import { PasswordField } from "@/components/password-field";
 
 export default function SignupPage({
   params,
@@ -173,24 +174,7 @@ export default function SignupPage({
           />
         </label>
 
-        <label className="block">
-          <span className="text-sm font-bold">
-            Password
-          </span>
-
-          <input
-            name="password"
-            type="password"
-            minLength={8}
-            autoComplete="new-password"
-            required
-            className="mt-2 w-full rounded-2xl border border-black/10 bg-white px-4 py-4 outline-none focus:border-mint"
-          />
-
-          <span className="mt-2 block text-xs text-ink/50">
-            Use at least 8 characters.
-          </span>
-        </label>
+        <PasswordField />
 
         <label className="flex items-start gap-3 rounded-2xl bg-white p-4 text-sm">
           <input
