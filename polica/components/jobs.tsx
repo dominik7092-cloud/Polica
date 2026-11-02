@@ -22,6 +22,7 @@ import {
 } from "./mission-runner";
 import { RetailerBrand } from "./retailer-brand";
 import { Button, Card, Chip } from "./ui";
+import { NearbyJobAlerts } from "./nearby-job-alerts";
 
 type RawJob = {
   id: string;
@@ -422,6 +423,18 @@ export function Jobs() {
 
   return (
     <>
+      <NearbyJobAlerts
+        jobs={jobs.map((job) => ({
+          id: job.id,
+          storeId: job.storeId,
+          chain: job.chain,
+          address: job.address,
+          reward: job.reward,
+          lat: job.lat,
+          lng: job.lng,
+        }))}
+        hr={hr}
+      />
       <section className="sticky top-0 z-30 border-b border-black/5 bg-cream/95 px-5 pb-4 pt-5 backdrop-blur">
         <h1 className="text-3xl font-black">{hr ? "Zaradi" : "Earn"}</h1>
         <div className="mt-4 flex gap-2">
