@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useLocale } from "next-intl";
 import {
   ArrowDownToLine,
   CheckCircle2,
@@ -28,6 +29,8 @@ export function EarningsClient({
   pending: number;
   entries: EarningsEntry[];
 }) {
+  const locale = useLocale();
+  const hr = locale === "hr";
   const [cashOutOpen, setCashOutOpen] = useState(false);
   const [method, setMethod] = useState<"revolut" | "paypal" | null>(null);
 
@@ -37,12 +40,12 @@ export function EarningsClient({
 
   return (
     <section className="px-5 py-8">
-      <p className="text-sm font-bold text-ink/45">Your money</p>
-      <h1 className="text-4xl font-black">Earnings</h1>
+      <p className="text-sm font-bold text-ink/45">{hr ? "Tvoj novac" : "Your money"}</p>
+      <h1 className="text-4xl font-black">{hr ? "Zarada" : "Earnings"}</h1>
 
       <Card className="mt-6 bg-ink p-6 text-white">
         <p className="text-xs font-bold uppercase tracking-widest text-white/45">
-          Available to cash out
+          {hr ? "Dostupno za isplatu" : "Available to cash out"}
         </p>
 
         <p className="mt-2 text-5xl font-black tracking-tight">
@@ -59,13 +62,15 @@ export function EarningsClient({
           }}
         >
           <ArrowDownToLine className="mr-2 inline" size={18} />
-          Cash out
+          {hr ? "Isplati" : "Cash out"}
         </Button>
 
         <p className="mt-3 text-center text-[11px] text-white/45">
           {canCashOut
-            ? "Minimum cash out reached"
-            : `€${amountUntilCashOut.toFixed(2)} more until the €${minimumCashOut.toFixed(2)} minimum`}
+            ? (hr ? "Minimalni iznos za isplatu je dosegnut" : "Minimum cash out reached")
+            : hr
+                ? `Još €${amountUntilCashOut.toFixed(2)} do minimalnih €${minimumCashOut.toFixed(2)}`
+                : `€${amountUntilCashOut.toFixed(2)} more until the €${minimumCashOut.toFixed(2)} minimum`}
         </p>
       </Card>
 
@@ -73,7 +78,7 @@ export function EarningsClient({
         <div className="flex items-center justify-between gap-4">
           <div>
             <p className="text-xs font-bold uppercase tracking-widest text-ink/40">
-              Pending review
+              {hr ? "Na pregledu" : "Pending review"}
             </p>
             <p className="mt-1 text-2xl font-black">€{pending.toFixed(2)}</p>
           </div>
@@ -91,19 +96,19 @@ export function EarningsClient({
       <div className="mb-3 mt-8 flex items-end justify-between">
         <div>
           <p className="text-xs font-bold uppercase tracking-widest text-ink/40">
-            Activity
+            {hr ? "Aktivnost" : "Activity"}
           </p>
-          <h2 className="text-xl font-black">Recent earnings</h2>
+          <h2 className="text-xl font-black">{hr ? "Nedavna zarada" : "Recent earnings"}</h2>
         </div>
         <span className="text-xs font-bold text-ink/40">
-          {entries.length} {entries.length === 1 ? "entry" : "entries"}
+          {entries.length} {hr ? (entries.length === 1 ? "stavka" : "stavki") : (entries.length === 1 ? "entry" : "entries")}
         </span>
       </div>
 
       {entries.length === 0 ? (
         <Card className="p-7 text-center">
           <Landmark className="mx-auto text-ink/20" size={40} />
-          <h3 className="mt-3 font-black">Nothing here yet</h3>
+          <h3 className="mt-3 font-black">{hr ? "Još nema aktivnosti" : "Nothing here yet"}</h3>
           <p className="mt-2 text-sm leading-relaxed text-ink/50">
             Finish a nearby check. Approved rewards will appear here and move into Available earnings.
           </p>
@@ -139,7 +144,7 @@ export function EarningsClient({
 
                 <div className="mt-3 pl-[52px]">
                   <Chip className={availableEntry ? "bg-mint/15 px-2 py-1" : "bg-amber-100 px-2 py-1"}>
-                    {availableEntry ? "Available" : "Pending review"}
+                    {availableEntry ? (hr ? "Dostupno" : "Available") : (hr ? "Na pregledu" : "Pending review")}
                   </Chip>
                 </div>
               </Card>
@@ -158,12 +163,12 @@ export function EarningsClient({
               type="button"
               className="absolute right-5 top-5 rounded-full bg-cream p-2"
               onClick={() => setCashOutOpen(false)}
-              aria-label="Close cash out"
+              aria-label={hr ? "Zatvori isplatu" : "Close cash out"}
             >
               <X size={18} />
             </button>
 
-            <p className="text-xs font-bold uppercase tracking-widest text-mint">Cash out</p>
+            <p className="text-xs font-bold uppercase tracking-widest text-mint">{hr ? "Isplata" : "Cash out"}</p>
             <h2 className="mt-2 pr-10 text-4xl font-black">€{available.toFixed(2)}</h2>
             <p className="mt-2 text-sm text-ink/50">
               Choose where you would like Polica to send your available earnings once payouts are enabled.
@@ -180,7 +185,7 @@ export function EarningsClient({
                 <div className="grid h-11 w-11 place-items-center rounded-full bg-ink text-sm font-black text-white">R</div>
                 <div className="flex-1">
                   <p className="font-black">Revolut</p>
-                  <p className="text-xs text-ink/45">Payout option</p>
+                  <p className="text-xs text-ink/45">{hr ? "Opcija isplate" : "Payout option"}</p>
                 </div>
                 {method === "revolut" && <CheckCircle2 className="text-mint" size={20} />}
               </button>
@@ -195,7 +200,7 @@ export function EarningsClient({
                 <div className="grid h-11 w-11 place-items-center rounded-full bg-[#0070ba] text-sm font-black text-white">P</div>
                 <div className="flex-1">
                   <p className="font-black">PayPal</p>
-                  <p className="text-xs text-ink/45">Payout option</p>
+                  <p className="text-xs text-ink/45">{hr ? "Opcija isplate" : "Payout option"}</p>
                 </div>
                 {method === "paypal" && <CheckCircle2 className="text-mint" size={20} />}
               </button>
@@ -205,7 +210,7 @@ export function EarningsClient({
               <div className="flex gap-3">
                 <LockKeyhole className="mt-0.5 shrink-0 text-ink/45" size={18} />
                 <div>
-                  <p className="font-black">Payouts are not enabled yet</p>
+                  <p className="font-black">{hr ? "Isplate još nisu omogućene" : "Payouts are not enabled yet"}</p>
                   <p className="mt-1 text-xs leading-relaxed text-ink/45">
                     Your earnings remain in Polica. No money will be sent from this screen until the payout service is connected.
                   </p>
@@ -214,7 +219,7 @@ export function EarningsClient({
             </div>
 
             <Button type="button" disabled className="mt-5 w-full bg-ink text-white opacity-45">
-              Payout coming soon
+              {hr ? "Isplata uskoro" : "Payout coming soon"}
             </Button>
           </div>
         </div>
