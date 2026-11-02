@@ -10,13 +10,13 @@ import {
   History,
   Languages,
   MapPin,
-  ShieldCheck,
   Store,
   Trash2,
   XCircle,
 } from "lucide-react";
 import { Card, Chip } from "@/components/ui";
 import { ProfilePreferences } from "@/components/profile-preferences-client";
+import { PermissionSettingsButton } from "@/components/permission-settings-button";
 
 type Submission = {
   id: string;
@@ -378,19 +378,10 @@ export default async function ProfilePage({
         {t("privacySection")}
       </h2>
 
-      <Card className="mb-3 flex items-center gap-3 p-4">
-        <ShieldCheck size={20} />
-
-        <div className="flex-1">
-          <p className="font-bold">
-            {t("cameraLocation")}
-          </p>
-
-          <p className="text-xs text-ink/45">
-            {t("cameraLocationDescription")}
-          </p>
-        </div>
-      </Card>
+      <PermissionSettingsButton
+        title={t("cameraLocation")}
+        description={t("cameraLocationDescription")}
+      />
 
       <Card className="mb-3 flex items-center gap-3 p-4">
         <Download size={20} />
