@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useLocale } from "next-intl";
 import { AnimatePresence, motion } from "framer-motion";
 import {
   CheckCircle2,
@@ -104,33 +105,35 @@ function distanceMeters(lat1: number, lng1: number, lat2: number, lng2: number) 
   return 2 * radius * Math.asin(Math.sqrt(a));
 }
 
-function formatDistance(distance: number | null) {
+function formatDistance(distance: number | null, hr: boolean) {
   if (distance === null) return null;
-  if (distance < 1000) return `${Math.round(distance)} m away`;
-  return `${(distance / 1000).toFixed(1)} km away`;
+  if (distance < 1000) return hr ? `${Math.round(distance)} m udaljeno` : `${Math.round(distance)} m away`;
+  return hr ? `${(distance / 1000).toFixed(1)} km udaljeno` : `${(distance / 1000).toFixed(1)} km away`;
 }
 
-function shopperType(type: string) {
+function shopperType(type: string, hr = false) {
   const normalized = type.toLowerCase();
-  if (normalized.includes("price")) return "Price check";
-  if (normalized.includes("photo") || normalized.includes("eye")) return "Photo check";
-  if (normalized.includes("survey")) return "Quick check";
-  if (normalized.includes("audit")) return "Availability check";
-  if (normalized.includes("mystery")) return "Store check";
-  return "Quick check";
+  if (normalized.includes("price")) return hr ? "Provjera cijene" : "Price check";
+  if (normalized.includes("photo") || normalized.includes("eye")) return hr ? "Foto provjera" : "Photo check";
+  if (normalized.includes("survey")) return hr ? "Brza provjera" : "Quick check";
+  if (normalized.includes("audit")) return hr ? "Provjera dostupnosti" : "Availability check";
+  if (normalized.includes("mystery")) return hr ? "Provjera trgovine" : "Store check";
+  return hr ? "Brza provjera" : "Quick check";
 }
 
-function reservationMessage(message: string) {
-  if (message.includes("ONE_ACTIVE_JOB")) return "You already have an active check.";
+function reservationMessage(message: string, hr: boolean) {
+  if (message.includes("ONE_ACTIVE_JOB")) return hr ? "Već imaš aktivnu provjeru." : "You already have an active check.";
   if (message.includes("JOB_ALREADY_RESERVED") || message.includes("duplicate key value")) {
-    return "Another shopper has already taken this check.";
+    return hr ? "Drugi korisnik već je preuzeo ovu provjeru." : "Another shopper has already taken this check.";
   }
-  if (message.includes("JOB_NOT_AVAILABLE")) return "This check is no longer available.";
-  if (message.includes("ACCOUNT_NOT_AVAILABLE")) return "Your account cannot take checks.";
-  return "The check could not be reserved. Please try again.";
+  if (message.includes("JOB_NOT_AVAILABLE")) return hr ? "Ova provjera više nije dostupna." : "This check is no longer available.";
+  if (message.includes("ACCOUNT_NOT_AVAILABLE")) return hr ? "Tvoj račun trenutačno ne može preuzimati provjere." : "Your account cannot take checks.";
+  return hr ? "Provjeru nije moguće rezervirati. Pokušaj ponovno." : "The check could not be reserved. Please try again.";
 }
 
 export function Jobs() {
+  const locale = useLocale();
+  const hr = locale === "hr";
   const [jobs, setJobs] = useState<PolicaJob[]>([]);
   const [query, setQuery] = useState("");
   const [retailer, setRetailer] = useState("All retailers");
@@ -188,8 +191,8 @@ export function Jobs() {
           id: job.id,
           storeId: job.store_id,
           title: job.title,
-          chain: store?.chain || "Store",
-          address: store?.address || "Address unavailable",
+          chain: store?.chain || (hr ? "Trgovina" : "Store"),
+          address: store?.address || (hr ? "Adresa nije dostupna" : "Address unavailable"),
           type: job.job_type,
           reward: job.reward_cents / 100,
           minutes: job.estimated_minutes,
@@ -263,7 +266,7 @@ export function Jobs() {
 
   function useMyLocation() {
     if (!navigator.geolocation) {
-      setLoadError("Location services are not available on this device.");
+      setLoadError(hr ? "Lokacijske usluge nisu dostupne na ovom uređaju." : "Location services are not available on this device.");
       return;
     }
     setLocating(true);
@@ -274,7 +277,7 @@ export function Jobs() {
         setLocating(false);
       },
       () => {
-        setLoadError("Location permission was not granted.");
+        setLoadError(hr ? "Dopuštenje za lokaciju nije odobreno." : "Location permission was not granted.");
         setLocating(false);
       },
       { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 }
@@ -354,14 +357,14 @@ export function Jobs() {
     const { data, error } = await client.rpc("reserve_job", { p_job: job.id });
 
     if (error) {
-      setReservationError(reservationMessage(error.message));
+      setReservationError(reservationMessage(error.message, hr));
       setReservationLoading(null);
       return;
     }
 
     const row = (Array.isArray(data) ? data[0] : data) as RawReservation | null;
     if (!row) {
-      setReservationError("Reservation data was not returned.");
+      setReservationError(hr ? "Podaci o rezervaciji nisu vraćeni." : "Reservation data was not returned.");
       setReservationLoading(null);
       return;
     }
@@ -378,7 +381,7 @@ export function Jobs() {
 
   async function cancelActiveReservation() {
     if (!activeReservation || cancelLoading) return;
-    if (!window.confirm("Cancel this check? It will become available to other shoppers again.")) return;
+    if (!window.confirm(hr ? "Otkazati ovu provjeru? Ponovno će postati dostupna drugim korisnicima." : "Cancel this check? It will become available to other shoppers again.")) return;
 
     setCancelLoading(true);
     setReservationError("");
@@ -388,7 +391,7 @@ export function Jobs() {
     });
 
     if (error) {
-      setReservationError("The check could not be cancelled. Please try again.");
+      setReservationError(hr ? "Provjeru nije moguće otkazati. Pokušaj ponovno." : "The check could not be cancelled. Please try again.");
       setCancelLoading(false);
       return;
     }
@@ -420,13 +423,13 @@ export function Jobs() {
   return (
     <>
       <section className="sticky top-0 z-30 border-b border-black/5 bg-cream/95 px-5 pb-4 pt-5 backdrop-blur">
-        <h1 className="text-3xl font-black">Earn</h1>
+        <h1 className="text-3xl font-black">{hr ? "Zaradi" : "Earn"}</h1>
         <div className="mt-4 flex gap-2">
           <label className="flex flex-1 items-center gap-2 rounded-2xl bg-white px-4 shadow-sm">
             <Search size={18} />
             <input
               className="w-full bg-transparent py-3.5 outline-none"
-              placeholder="Search nearby stores"
+              placeholder={hr ? "Pretraži trgovine u blizini" : "Search nearby stores"}
               value={query}
               onChange={(event) => setQuery(event.target.value)}
             />
@@ -435,7 +438,7 @@ export function Jobs() {
             type="button"
             onClick={() => setFiltersOpen((value) => !value)}
             className="rounded-2xl bg-ink p-4 text-white"
-            aria-label="Filters"
+            aria-label={hr ? "Filtri" : "Filters"}
           >
             <SlidersHorizontal size={19} />
           </button>
@@ -444,7 +447,7 @@ export function Jobs() {
         {filtersOpen && (
           <Card className="mt-4 max-h-[55vh] overflow-y-auto p-4">
             <div className="flex items-center justify-between">
-              <h2 className="font-black">Find what suits you</h2>
+              <h2 className="font-black">{hr ? "Pronađi što ti odgovara" : "Find what suits you"}</h2>
               <button
                 type="button"
                 className="text-xs font-bold text-ink/45"
@@ -459,7 +462,7 @@ export function Jobs() {
             </div>
 
             <label className="mt-4 block">
-              <span className="text-xs font-bold uppercase text-ink/40">Retailer</span>
+              <span className="text-xs font-bold uppercase text-ink/40">{hr ? "Trgovac" : "Retailer"}</span>
               <select
                 value={retailer}
                 onChange={(event) => setRetailer(event.target.value)}
@@ -482,7 +485,7 @@ export function Jobs() {
                     maxDistanceKm === km ? "bg-ink text-white" : "bg-cream"
                   }`}
                 >
-                  Within {km} km
+                  {hr ? `Unutar ${km} km` : `Within ${km} km`}
                 </button>
               ))}
               <button
@@ -502,7 +505,7 @@ export function Jobs() {
               disabled={locating}
               onClick={useMyLocation}
             >
-              {locating ? "Finding you…" : userLocation ? "Location ready ✓" : "Use my location"}
+              {locating ? (hr ? "Tražim tvoju lokaciju…" : "Finding you…") : userLocation ? (hr ? "Lokacija spremna ✓" : "Location ready ✓") : (hr ? "Koristi moju lokaciju" : "Use my location")}
             </Button>
 
             <div className="mt-4 grid grid-cols-2 gap-2">
@@ -533,21 +536,21 @@ export function Jobs() {
       </section>
 
       <section ref={listTopRef} className="min-h-[420px] rounded-t-[36px] bg-white px-5 pb-32 pt-5">
-        <p className="text-xs font-bold uppercase tracking-widest text-ink/40">Near you</p>
+        <p className="text-xs font-bold uppercase tracking-widest text-ink/40">{hr ? "U blizini" : "Near you"}</p>
         <h2 className="text-2xl font-black">
-          {loading ? "Finding stores" : `${stores.length} ${stores.length === 1 ? "store" : "stores"}`}
+          {loading ? (hr ? "Tražim trgovine" : "Finding stores") : `${stores.length} ${hr ? (stores.length === 1 ? "trgovina" : "trgovina") : (stores.length === 1 ? "store" : "stores")}`}
         </h2>
 
         {loading && (
           <Card className="mt-5 p-6 text-center">
             <RefreshCw className="mx-auto animate-spin text-mint" size={26} />
-            <p className="mt-3 font-bold">Loading nearby opportunities…</p>
+            <p className="mt-3 font-bold">{hr ? "Učitavanje prilika u blizini…" : "Loading nearby opportunities…"}</p>
           </Card>
         )}
 
         {!loading && loadError && (
           <Card className="mt-5 p-6 text-center">
-            <p className="font-black">Opportunities temporarily unavailable</p>
+            <p className="font-black">{hr ? "Prilike trenutačno nisu dostupne" : "Opportunities temporarily unavailable"}</p>
             <p className="mt-2 text-sm text-ink/50">{loadError}</p>
             <Button type="button" className="mt-4" onClick={() => void loadJobs()}>
               Try again
@@ -557,8 +560,8 @@ export function Jobs() {
 
         {!loading && !loadError && stores.length === 0 && (
           <Card className="mt-5 p-6 text-center">
-            <p className="font-black">No nearby opportunities</p>
-            <p className="mt-2 text-sm text-ink/45">Try a different retailer or distance.</p>
+            <p className="font-black">{hr ? "Nema prilika u blizini" : "No nearby opportunities"}</p>
+            <p className="mt-2 text-sm text-ink/45">{hr ? "Pokušaj s drugim trgovcem ili udaljenosti." : "Try a different retailer or distance."}</p>
           </Card>
         )}
 
@@ -583,9 +586,9 @@ export function Jobs() {
                     <div className="flex items-start justify-between gap-3">
                       <div>
                         <h3 className="font-black">{store.chain}</h3>
-                        {formatDistance(store.distanceFromUser) && (
+                        {formatDistance(store.distanceFromUser, hr) && (
                           <p className="mt-1 text-sm font-black text-coral">
-                            {formatDistance(store.distanceFromUser)}
+                            {formatDistance(store.distanceFromUser, hr)}
                           </p>
                         )}
                         <p className="mt-1 line-clamp-1 text-xs text-ink/45">{store.address}</p>
@@ -595,13 +598,13 @@ export function Jobs() {
                     <div className="mt-3 flex items-end justify-between gap-3">
                       <div>
                         <p className="text-sm font-black">
-                          {store.jobs.length} {store.jobs.length === 1 ? "opportunity" : "opportunities"}
+                          {store.jobs.length} {hr ? (store.jobs.length === 1 ? "prilika" : "prilike") : (store.jobs.length === 1 ? "opportunity" : "opportunities")}
                         </p>
-                        <p className="text-xs text-ink/45">~{store.totalMinutes} min total</p>
+                        <p className="text-xs text-ink/45">~{store.totalMinutes} {hr ? "min ukupno" : "min total"}</p>
                       </div>
                       <div className="text-right">
                         <p className="text-[10px] font-bold uppercase text-ink/40">
-                          {store.jobs.length === 1 ? "Earn" : "Earn up to"}
+                          {hr ? (store.jobs.length === 1 ? "Zaradi" : "Zaradi do") : (store.jobs.length === 1 ? "Earn" : "Earn up to")}
                         </p>
                         <p className="text-2xl font-black">€{store.totalReward.toFixed(2)}</p>
                       </div>
@@ -616,7 +619,7 @@ export function Jobs() {
         {!loading && !loadError && stores.length > 0 && (
           <div className="mt-5">
             <p className="text-center text-xs font-semibold text-ink/40">
-              Showing {Math.min(visibleCount, stores.length)} of {stores.length} stores
+              {hr ? `Prikazano ${Math.min(visibleCount, stores.length)} od ${stores.length} trgovina` : `Showing ${Math.min(visibleCount, stores.length)} of ${stores.length} stores`}
             </p>
             {visibleCount < stores.length && (
               <button
@@ -624,7 +627,7 @@ export function Jobs() {
                 onClick={() => setVisibleCount((current) => current + PAGE_SIZE)}
                 className="mt-3 w-full rounded-2xl bg-cream px-4 py-4 text-sm font-black"
               >
-                Show {Math.min(PAGE_SIZE, stores.length - visibleCount)} more stores
+                {hr ? `Prikaži još ${Math.min(PAGE_SIZE, stores.length - visibleCount)} trgovina` : `Show ${Math.min(PAGE_SIZE, stores.length - visibleCount)} more stores`}
               </button>
             )}
             {visibleCount > PAGE_SIZE && (
@@ -636,7 +639,7 @@ export function Jobs() {
                 }}
                 className="mt-2 w-full py-3 text-xs font-bold text-ink/45"
               >
-                Collapse to first {PAGE_SIZE}
+                {hr ? `Sažmi na prvih ${PAGE_SIZE}` : `Collapse to first ${PAGE_SIZE}`}
               </button>
             )}
           </div>
@@ -649,7 +652,7 @@ export function Jobs() {
             <div className="flex items-center justify-between gap-3">
               <div>
                 <p className="text-[10px] font-bold uppercase tracking-widest text-mint">
-                  Reserved · {formatCountdown(countdown)}
+                  {hr ? "Rezervirano" : "Reserved"} · {formatCountdown(countdown)}
                 </p>
                 <p className="font-bold">{activeReservation.job.chain}</p>
                 <p className="text-xs text-white/55">{activeReservation.job.title}</p>
@@ -669,7 +672,7 @@ export function Jobs() {
               onClick={() => void cancelActiveReservation()}
               className="mt-2 w-full py-2 text-xs font-bold text-white/55 disabled:opacity-50"
             >
-              {cancelLoading ? "Cancelling…" : "Cancel check"}
+              {cancelLoading ? (hr ? "Otkazivanje…" : "Cancelling…") : (hr ? "Otkaži provjeru" : "Cancel check")}
             </button>
           </Card>
         </div>
@@ -701,9 +704,9 @@ export function Jobs() {
                 <RetailerBrand retailer={selectedStore.chain} />
                 <div>
                   <h2 className="text-2xl font-black">{selectedStore.chain}</h2>
-                  {formatDistance(selectedStore.distanceFromUser) && (
+                  {formatDistance(selectedStore.distanceFromUser, hr) && (
                     <p className="mt-1 font-black text-coral">
-                      {formatDistance(selectedStore.distanceFromUser)}
+                      {formatDistance(selectedStore.distanceFromUser, hr)}
                     </p>
                   )}
                   <p className="mt-1 text-xs text-ink/45">{selectedStore.address}</p>
@@ -723,7 +726,7 @@ export function Jobs() {
                       <div className="flex items-start justify-between gap-3">
                         <div>
                           <p className="text-xs font-bold uppercase text-ink/40">
-                            {shopperType(job.type)}
+                            {shopperType(job.type, hr)}
                           </p>
                           <p className="mt-1 font-black">{job.title}</p>
                           <p className="mt-2 flex items-center gap-1 text-xs text-ink/45">
