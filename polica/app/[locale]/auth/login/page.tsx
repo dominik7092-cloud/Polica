@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { logIn } from "../actions";
+import { LoginPasswordField } from "@/components/login-password-field";
 
 export default function LoginPage({
   params,
@@ -20,7 +21,10 @@ export default function LoginPage({
         Log in to find available jobs near you.
       </p>
 
-      <form action={logIn} className="mt-8 space-y-4">
+      <form
+        action={logIn}
+        className="mt-8 space-y-4"
+      >
         <input
           type="hidden"
           name="locale"
@@ -28,7 +32,9 @@ export default function LoginPage({
         />
 
         <label className="block">
-          <span className="text-sm font-bold">Email</span>
+          <span className="text-sm font-bold">
+            Email
+          </span>
 
           <input
             name="email"
@@ -39,17 +45,7 @@ export default function LoginPage({
           />
         </label>
 
-        <label className="block">
-          <span className="text-sm font-bold">Password</span>
-
-          <input
-            name="password"
-            type="password"
-            autoComplete="current-password"
-            required
-            className="mt-2 w-full rounded-2xl border border-black/10 bg-white px-4 py-4 outline-none focus:border-mint"
-          />
-        </label>
+        <LoginPasswordField />
 
         <button
           type="submit"
