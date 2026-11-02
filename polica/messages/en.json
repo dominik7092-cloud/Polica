@@ -1,1 +1,57 @@
-{"nav":{"jobs":"Jobs","wallet":"Wallet","profile":"Profile"},"home":{"hello":"Good afternoon","nearby":"Jobs near you","subtitle":"Complete quick store tasks and earn in euros."}}
+{
+  "nav": {
+    "jobs": "Jobs",
+    "wallet": "Wallet",
+    "profile": "Profile"
+  },
+  "home": {
+    "hello": "Good afternoon",
+    "nearby": "Jobs near you",
+    "subtitle": "Complete quick store tasks and earn in euros."
+  },
+  "profile": {
+    "accountLabel": "Your account",
+    "title": "Profile",
+    "defaultName": "Agent",
+
+    "shoppingTitle": "My shopping",
+    "shoppingDescription": "Keep Polica focused on places that are useful to you.",
+
+    "regularStores": "Regular stores",
+    "savedStores": "{count} saved",
+    "manage": "Manage",
+
+    "checksTitle": "My checks",
+    "checksDescription": "Your latest activity.",
+    "approvedCount": "{count} approved",
+    "pendingCount": "{count} pending",
+    "noChecks": "No checks yet",
+    "quickCheck": "Quick check",
+
+    "statusApproved": "Approved",
+    "statusRejected": "Rejected",
+    "statusUnderReview": "Under review",
+
+    "accountSection": "Account",
+    "language": "Language",
+    "croatian": "Hrvatski",
+    "english": "English",
+
+    "privacySection": "Privacy & permissions",
+    "cameraLocation": "Camera & location",
+    "cameraLocationDescription": "Used only when needed for nearby checks and evidence.",
+
+    "exportData": "Export my data",
+    "exportDataDescription": "Data export will be enabled before public launch.",
+
+    "deleteAccount": "Delete account",
+    "deleteAccountDescription": "Account deletion will be enabled before public launch."
+  },
+  "profilePreferences": {
+    "title": "Shops near me",
+    "description": "Show quick checks within your preferred distance when Polica has your location.",
+    "saved": "Saved",
+    "loginAgain": "Please log in again.",
+    "saveError": "The distance could not be saved. Please try again."
+  }
+}
