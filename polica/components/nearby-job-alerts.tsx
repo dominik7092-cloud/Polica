@@ -42,7 +42,7 @@ export function NearbyJobAlerts({ jobs, hr }: Props) {
 
       const lookup = new Map<string, NearbyJob[]>();
       let index = 0;
-      for (const storeJobs of grouped.values()) {
+      for (const storeJobs of Array.from(grouped.values())) {
         const first = storeJobs[0];
         const identifier = `polica-store-${index}-${first.storeId}`;
         index += 1;
