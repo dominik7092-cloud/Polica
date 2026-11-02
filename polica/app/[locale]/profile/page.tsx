@@ -3,20 +3,17 @@ import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { createClient } from "@/lib/supabase/server";
 import {
-  ChevronRight,
   CheckCircle2,
   Clock3,
-  Download,
   History,
-  Languages,
   MapPin,
   Store,
-  Trash2,
   XCircle,
 } from "lucide-react";
 import { Card, Chip } from "@/components/ui";
 import { ProfilePreferences } from "@/components/profile-preferences-client";
 import { PermissionSettingsButton } from "@/components/permission-settings-button";
+import { LanguageSelector } from "@/components/language-selector";
 
 type Submission = {
   id: string;
@@ -356,23 +353,12 @@ export default async function ProfilePage({
         {t("accountSection")}
       </h2>
 
-      <Card className="mb-3 flex items-center gap-3 p-4">
-        <Languages size={20} />
-
-        <div className="flex-1">
-          <p className="font-bold">
-            {t("language")}
-          </p>
-
-          <p className="text-xs text-ink/45">
-            {params.locale === "hr"
-              ? t("croatian")
-              : t("english")}
-          </p>
-        </div>
-
-        <ChevronRight size={18} />
-      </Card>
+      <LanguageSelector
+        currentLocale={params.locale === "hr" ? "hr" : "en"}
+        title={t("language")}
+        croatianLabel={t("croatian")}
+        englishLabel={t("english")}
+      />
 
       <h2 className="mb-3 mt-8 text-xl font-black">
         {t("privacySection")}
@@ -382,38 +368,6 @@ export default async function ProfilePage({
         title={t("cameraLocation")}
         description={t("cameraLocationDescription")}
       />
-
-      <Card className="mb-3 flex items-center gap-3 p-4">
-        <Download size={20} />
-
-        <div className="flex-1">
-          <p className="font-bold">
-            {t("exportData")}
-          </p>
-
-          <p className="text-xs text-ink/45">
-            {t("exportDataDescription")}
-          </p>
-        </div>
-
-        <ChevronRight size={18} />
-      </Card>
-
-      <Card className="mb-3 flex items-center gap-3 p-4">
-        <Trash2 size={20} />
-
-        <div className="flex-1">
-          <p className="font-bold">
-            {t("deleteAccount")}
-          </p>
-
-          <p className="text-xs text-ink/45">
-            {t("deleteAccountDescription")}
-          </p>
-        </div>
-
-        <ChevronRight size={18} />
-      </Card>
     </section>
   );
 }
