@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { getTranslations } from "next-intl/server";
 import { createClient } from "@/lib/supabase/server";
 import {
+  ChevronRight,
   CheckCircle2,
   Clock3,
   Download,
@@ -15,7 +17,6 @@ import {
 } from "lucide-react";
 import { Card, Chip } from "@/components/ui";
 import { ProfilePreferences } from "@/components/profile-preferences-client";
-import { LogoutButton } from "@/components/logout-button";
 
 type Submission = {
   id: string;
@@ -43,12 +44,16 @@ export default async function ProfilePage({
 }: {
   params: { locale: string };
 }) {
+  const t = await getTranslations("profile");
   const supabase = createClient();
+
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user) redirect(`/${params.locale}/auth/login`);
+  if (!user) {
+    redirect(`/${params.locale}/auth/login`);
+  }
 
   const { data: profile } = await supabase
     .from("profiles")
@@ -62,7 +67,7 @@ export default async function ProfilePage({
     .eq("agent_id", user.id)
     .order("created_at", { ascending: true });
 
-  const stores = (storeData ?? []) as RegularStore[];
+  const regularStores = (storeData ?? []) as RegularStore[];
 
   const { data: submissionData } = await supabase
     .from("submissions")
@@ -72,48 +77,88 @@ export default async function ProfilePage({
     .limit(10);
 
   const submissions = (submissionData ?? []) as Submission[];
-  const jobIds = Array.from(new Set(submissions.map((item) => item.job_id)));
+
+  const jobIds = Array.from(
+    new Set(submissions.map((item) => item.job_id))
+  );
 
   let jobs: Job[] = [];
+
   if (jobIds.length > 0) {
     const { data } = await supabase
       .from("jobs")
       .select("id, title, reward_cents")
       .in("id", jobIds);
+
     jobs = (data ?? []) as Job[];
   }
 
-  const jobsById = new Map(jobs.map((job) => [job.id, job]));
-  const firstName = profile?.first_name || "Shopper";
-  const initials = firstName.slice(0, 2).toUpperCase();
-  const approved = submissions.filter((item) => item.status === "approved").length;
-  const pending = submissions.filter((item) => ["submitted", "flagged"].includes(item.status)).length;
-  const rejected = submissions.filter((item) => item.status === "rejected").length;
+  const jobsById = new Map(
+    jobs.map((job) => [job.id, job])
+  );
+
+  const firstName =
+    profile?.first_name || t("defaultName");
+
+  const initials = firstName
+    .slice(0, 2)
+    .toUpperCase();
+
+  const approved = submissions.filter(
+    (item) => item.status === "approved"
+  ).length;
+
+  const pending = submissions.filter(
+    (item) =>
+      item.status === "submitted" ||
+      item.status === "flagged"
+  ).length;
 
   return (
     <section className="px-5 py-8">
-      <p className="text-sm font-bold text-ink/45">Your account</p>
-      <h1 className="text-4xl font-black">Profile</h1>
+      <p className="text-sm font-bold text-ink/45">
+        {t("accountLabel")}
+      </p>
+
+      <h1 className="text-4xl font-black">
+        {t("title")}
+      </h1>
 
       <Card className="mt-6 p-5">
         <div className="flex items-center gap-4">
           <div className="grid h-16 w-16 place-items-center rounded-full bg-mint text-xl font-black">
             {initials}
           </div>
+
           <div className="min-w-0">
-            <h2 className="text-xl font-black">{firstName}</h2>
-            <p className="mt-1 truncate text-xs text-ink/45">{user.email}</p>
-            <p className="mt-1 text-xs text-ink/35">{profile?.country_code || "HR"}</p>
+            <h2 className="text-xl font-black">
+              {firstName}
+            </h2>
+
+            <p className="mt-1 truncate text-xs text-ink/45">
+              {user.email}
+            </p>
+
+            <p className="mt-1 text-xs text-ink/35">
+              {profile?.country_code || "HR"}
+            </p>
           </div>
         </div>
       </Card>
 
       <div className="mt-8">
-        <p className="text-xs font-bold uppercase tracking-widest text-ink/40">My shopping</p>
-        <h2 className="text-xl font-black">Keep opportunities relevant</h2>
+        <h2 className="text-xl font-black">
+          {t("shoppingTitle")}
+        </h2>
+
+        <p className="mt-1 text-sm text-ink/45">
+          {t("shoppingDescription")}
+        </p>
       </div>
 
-      <ProfilePreferences initialDistance={profile?.nearby_distance_km ?? 5} />
+      <ProfilePreferences
+        initialDistance={profile?.nearby_distance_km ?? 5}
+      />
 
       <Card className="mt-3 p-5">
         <div className="flex items-center justify-between gap-3">
@@ -121,81 +166,122 @@ export default async function ProfilePage({
             <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-mint/15 text-mint">
               <Store size={19} />
             </div>
+
             <div>
-              <p className="font-black">Stores I shop at</p>
+              <p className="font-black">
+                {t("regularStores")}
+              </p>
+
               <p className="text-xs text-ink/45">
-                {stores.length === 0
-                  ? "No stores saved"
-                  : `${stores.length} ${stores.length === 1 ? "store" : "stores"} saved`}
+                {t("savedStores", {
+                  count: regularStores.length,
+                })}
               </p>
             </div>
           </div>
+
           <Link
-            href={`/${params.locale}/profile/stores`}
+            href={`/${params.locale}/onboarding`}
             className="rounded-full bg-cream px-3 py-2 text-xs font-black"
           >
-            Manage
+            {t("manage")}
           </Link>
         </div>
 
-        {stores.length > 0 && (
-          <div className="mt-4 space-y-3 border-t border-black/5 pt-4">
-            {stores.slice(0, 3).map((store) => (
-              <div key={store.id} className="flex items-start gap-2">
-                <MapPin className="mt-0.5 shrink-0 text-mint" size={15} />
+        {regularStores.length > 0 && (
+          <div className="mt-4 space-y-2 border-t border-black/5 pt-3">
+            {regularStores.slice(0, 3).map((store) => (
+              <div
+                key={store.id}
+                className="flex items-start gap-2 text-sm"
+              >
+                <MapPin
+                  className="mt-0.5 shrink-0 text-mint"
+                  size={15}
+                />
+
                 <div>
-                  <p className="text-sm font-bold">{store.store_name}</p>
-                  <p className="mt-0.5 text-xs text-ink/40">{store.address}</p>
+                  <p className="font-bold">
+                    {store.store_name}
+                  </p>
+
+                  <p className="text-xs text-ink/40">
+                    {store.address}
+                  </p>
                 </div>
               </div>
             ))}
-            {stores.length > 3 && (
-              <p className="text-xs font-bold text-ink/40">+ {stores.length - 3} more</p>
-            )}
           </div>
         )}
       </Card>
 
-      <div className="mt-8">
-        <p className="text-xs font-bold uppercase tracking-widest text-ink/40">My checks</p>
-        <div className="mt-2 grid grid-cols-3 gap-2">
-          <Card className="p-3 text-center shadow-none">
-            <p className="text-xl font-black text-mint">{approved}</p>
-            <p className="text-[10px] font-bold text-ink/40">APPROVED</p>
-          </Card>
-          <Card className="p-3 text-center shadow-none">
-            <p className="text-xl font-black text-amber-600">{pending}</p>
-            <p className="text-[10px] font-bold text-ink/40">PENDING</p>
-          </Card>
-          <Card className="p-3 text-center shadow-none">
-            <p className="text-xl font-black text-coral">{rejected}</p>
-            <p className="text-[10px] font-bold text-ink/40">REJECTED</p>
-          </Card>
+      <div className="mt-8 flex items-end justify-between">
+        <div>
+          <h2 className="text-xl font-black">
+            {t("checksTitle")}
+          </h2>
+
+          <p className="mt-1 text-sm text-ink/45">
+            {t("checksDescription")}
+          </p>
+        </div>
+
+        <div className="flex gap-2">
+          <Chip className="bg-mint/15">
+            {t("approvedCount", {
+              count: approved,
+            })}
+          </Chip>
+
+          <Chip>
+            {t("pendingCount", {
+              count: pending,
+            })}
+          </Chip>
         </div>
       </div>
 
       {submissions.length === 0 ? (
         <Card className="mt-3 p-6 text-center">
-          <History className="mx-auto text-ink/20" size={34} />
-          <p className="mt-3 font-black">No checks yet</p>
-          <p className="mt-2 text-sm text-ink/45">
-            Checks you finish will appear here.
+          <History
+            className="mx-auto text-ink/20"
+            size={34}
+          />
+
+          <p className="mt-3 font-black">
+            {t("noChecks")}
           </p>
         </Card>
       ) : (
         <div className="mt-3 space-y-3">
           {submissions.map((submission) => {
-            const job = jobsById.get(submission.job_id);
-            const approvedStatus = submission.status === "approved";
-            const rejectedStatus = submission.status === "rejected";
+            const job = jobsById.get(
+              submission.job_id
+            );
+
+            const approvedStatus =
+              submission.status === "approved";
+
+            const rejectedStatus =
+              submission.status === "rejected";
+
             const StatusIcon = approvedStatus
               ? CheckCircle2
               : rejectedStatus
                 ? XCircle
                 : Clock3;
 
+            const statusText = approvedStatus
+              ? t("statusApproved")
+              : rejectedStatus
+                ? t("statusRejected")
+                : t("statusUnderReview");
+
             return (
-              <Card key={submission.id} className="p-4">
+              <Card
+                key={submission.id}
+                className="p-4"
+              >
                 <div className="flex items-start gap-3">
                   <div
                     className={`grid h-10 w-10 shrink-0 place-items-center rounded-full ${
@@ -212,16 +298,28 @@ export default async function ProfilePage({
                   <div className="min-w-0 flex-1">
                     <div className="flex justify-between gap-3">
                       <div>
-                        <p className="font-black">{job?.title || "Quick check"}</p>
+                        <p className="font-black">
+                          {job?.title ||
+                            t("quickCheck")}
+                        </p>
+
                         <p className="mt-1 text-xs text-ink/40">
-                          {new Date(submission.created_at).toLocaleDateString(
-                            params.locale === "hr" ? "hr-HR" : "en-GB"
+                          {new Date(
+                            submission.created_at
+                          ).toLocaleDateString(
+                            params.locale === "hr"
+                              ? "hr-HR"
+                              : "en-GB"
                           )}
                         </p>
                       </div>
+
                       {job && (
                         <p className="shrink-0 font-black">
-                          €{(job.reward_cents / 100).toFixed(2)}
+                          €
+                          {(
+                            job.reward_cents / 100
+                          ).toFixed(2)}
                         </p>
                       )}
                     </div>
@@ -235,18 +333,17 @@ export default async function ProfilePage({
                             : "bg-amber-100"
                       }`}
                     >
-                      {approvedStatus
-                        ? "Approved"
-                        : rejectedStatus
-                          ? "Rejected"
-                          : "Pending review"}
+                      {statusText}
                     </Chip>
 
-                    {rejectedStatus && submission.rejection_reason && (
-                      <p className="mt-3 rounded-2xl bg-coral/10 p-3 text-xs font-semibold text-coral">
-                        {submission.rejection_reason}
-                      </p>
-                    )}
+                    {rejectedStatus &&
+                      submission.rejection_reason && (
+                        <p className="mt-3 rounded-2xl bg-coral/10 p-3 text-xs font-semibold">
+                          {
+                            submission.rejection_reason
+                          }
+                        </p>
+                      )}
                   </div>
                 </div>
               </Card>
@@ -255,52 +352,76 @@ export default async function ProfilePage({
         </div>
       )}
 
-      <div className="mt-8">
-        <p className="text-xs font-bold uppercase tracking-widest text-ink/40">Account</p>
-      </div>
+      <h2 className="mb-3 mt-8 text-xl font-black">
+        {t("accountSection")}
+      </h2>
 
-      <Card className="mt-3 p-4">
-        <div className="flex items-center gap-3">
-          <Languages size={20} />
-          <div>
-            <p className="font-bold">Language</p>
-            <p className="text-xs text-ink/45">
-              {params.locale === "hr" ? "Hrvatski" : "English"}
-            </p>
-          </div>
+      <Card className="mb-3 flex items-center gap-3 p-4">
+        <Languages size={20} />
+
+        <div className="flex-1">
+          <p className="font-bold">
+            {t("language")}
+          </p>
+
+          <p className="text-xs text-ink/45">
+            {params.locale === "hr"
+              ? t("croatian")
+              : t("english")}
+          </p>
         </div>
+
+        <ChevronRight size={18} />
       </Card>
 
-      <LogoutButton locale={params.locale} />
+      <h2 className="mb-3 mt-8 text-xl font-black">
+        {t("privacySection")}
+      </h2>
 
-      <div className="mt-8">
-        <p className="text-xs font-bold uppercase tracking-widest text-ink/40">Privacy & data</p>
-      </div>
+      <Card className="mb-3 flex items-center gap-3 p-4">
+        <ShieldCheck size={20} />
 
-      <Card className="mt-3 flex items-start gap-3 p-4">
-        <ShieldCheck className="mt-0.5 shrink-0" size={20} />
-        <div>
-          <p className="font-bold">Camera & location</p>
-          <p className="mt-1 text-xs leading-relaxed text-ink/45">
-            Polica uses camera and location only when needed for nearby opportunities and check evidence.
+        <div className="flex-1">
+          <p className="font-bold">
+            {t("cameraLocation")}
+          </p>
+
+          <p className="text-xs text-ink/45">
+            {t("cameraLocationDescription")}
           </p>
         </div>
       </Card>
 
-      <Card className="mt-3 flex items-start gap-3 p-4 opacity-60">
-        <Download className="mt-0.5 shrink-0" size={20} />
-        <div>
-          <p className="font-bold">Download my data</p>
-          <p className="mt-1 text-xs text-ink/45">Available before public launch.</p>
+      <Card className="mb-3 flex items-center gap-3 p-4">
+        <Download size={20} />
+
+        <div className="flex-1">
+          <p className="font-bold">
+            {t("exportData")}
+          </p>
+
+          <p className="text-xs text-ink/45">
+            {t("exportDataDescription")}
+          </p>
         </div>
+
+        <ChevronRight size={18} />
       </Card>
 
-      <Card className="mt-3 flex items-start gap-3 p-4 opacity-60">
-        <Trash2 className="mt-0.5 shrink-0 text-coral" size={20} />
-        <div>
-          <p className="font-bold">Delete account</p>
-          <p className="mt-1 text-xs text-ink/45">Available before public launch.</p>
+      <Card className="mb-3 flex items-center gap-3 p-4">
+        <Trash2 size={20} />
+
+        <div className="flex-1">
+          <p className="font-bold">
+            {t("deleteAccount")}
+          </p>
+
+          <p className="text-xs text-ink/45">
+            {t("deleteAccountDescription")}
+          </p>
         </div>
+
+        <ChevronRight size={18} />
       </Card>
     </section>
   );
