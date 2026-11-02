@@ -1,1 +1,57 @@
-{"nav":{"jobs":"Zadaci","wallet":"Novčanik","profile":"Profil"},"home":{"hello":"Dobar dan","nearby":"Zadaci u blizini","subtitle":"Obavi kratke zadatke u trgovinama i zaradi u eurima."}}
+{
+  "nav": {
+    "jobs": "Zadaci",
+    "wallet": "Novčanik",
+    "profile": "Profil"
+  },
+  "home": {
+    "hello": "Dobar dan",
+    "nearby": "Zadaci u blizini",
+    "subtitle": "Obavi kratke zadatke u trgovinama i zaradi u eurima."
+  },
+  "profile": {
+    "accountLabel": "Tvoj račun",
+    "title": "Profil",
+    "defaultName": "Korisnik",
+
+    "shoppingTitle": "Moja kupnja",
+    "shoppingDescription": "Prilagodi Policu trgovinama i lokacijama koje su ti korisne.",
+
+    "regularStores": "Redovne trgovine",
+    "savedStores": "Spremljeno: {count}",
+    "manage": "Uredi",
+
+    "checksTitle": "Moje provjere",
+    "checksDescription": "Tvoje posljednje aktivnosti.",
+    "approvedCount": "Odobreno: {count}",
+    "pendingCount": "Na čekanju: {count}",
+    "noChecks": "Još nema provjera",
+    "quickCheck": "Brza provjera",
+
+    "statusApproved": "Odobreno",
+    "statusRejected": "Odbijeno",
+    "statusUnderReview": "Na pregledu",
+
+    "accountSection": "Račun",
+    "language": "Jezik",
+    "croatian": "Hrvatski",
+    "english": "Engleski",
+
+    "privacySection": "Privatnost i dopuštenja",
+    "cameraLocation": "Kamera i lokacija",
+    "cameraLocationDescription": "Koriste se samo kada su potrebne za zadatke u blizini i dokaz izvršenja.",
+
+    "exportData": "Izvezi moje podatke",
+    "exportDataDescription": "Izvoz podataka bit će omogućen prije javnog pokretanja aplikacije.",
+
+    "deleteAccount": "Izbriši račun",
+    "deleteAccountDescription": "Brisanje računa bit će omogućeno prije javnog pokretanja aplikacije."
+  },
+  "profilePreferences": {
+    "title": "Trgovine u blizini",
+    "description": "Prikaži brze provjere unutar odabrane udaljenosti kada Polica ima pristup tvojoj lokaciji.",
+    "saved": "Spremljeno",
+    "loginAgain": "Ponovno se prijavi.",
+    "saveError": "Udaljenost nije moguće spremiti. Pokušaj ponovno."
+  }
+}
