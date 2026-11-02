@@ -714,7 +714,14 @@ export function Jobs() {
               </div>
 
               <h3 className="mt-7 text-xl font-black">
-                {selectedStore.jobs.length} {selectedStore.jobs.length === 1 ? "opportunity" : "opportunities"}
+                {selectedStore.jobs.length}{" "}
+                {hr
+                  ? selectedStore.jobs.length === 1
+                    ? "prilika"
+                    : "prilike"
+                  : selectedStore.jobs.length === 1
+                    ? "opportunity"
+                    : "opportunities"}
               </h3>
 
               <div className="mt-3 space-y-3">
@@ -742,10 +749,16 @@ export function Jobs() {
                         onClick={() => void takeCheck(job)}
                       >
                         {reservationLoading === job.id
-                          ? "Reserving…"
+                          ? hr
+                            ? "Rezerviranje…"
+                            : "Reserving…"
                           : activeReservation
-                            ? "Another check is already reserved"
-                            : "Take this check"}
+                            ? hr
+                              ? "Druga provjera je već rezervirana"
+                              : "Another check is already reserved"
+                            : hr
+                              ? "Preuzmi ovu provjeru"
+                              : "Take this check"}
                       </Button>
                     </Card>
                   ))}
