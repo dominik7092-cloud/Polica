@@ -664,7 +664,7 @@ export function Jobs() {
               className="mt-3 w-full bg-mint py-2.5 text-ink"
               onClick={() => setMissionOpen(true)}
             >
-              <Play className="mr-2 inline" size={16} /> Start check
+              <Play className="mr-2 inline" size={16} /> {hr ? "Započni provjeru" : "Start check"}
             </Button>
             <button
               type="button"
