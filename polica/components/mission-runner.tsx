@@ -430,11 +430,59 @@ export function MissionRunner({
 
     return (
       <div className="mt-7">
-        <div className="mb-4 rounded-2xl bg-mint/10 p-4">
-          <p className="font-black">Take one clear photo</p>
-          <p className="mt-1 text-sm leading-relaxed text-ink/55">
-            Show the requested product or display together with the surrounding
-            shelf.
+        <div className="mb-4 rounded-3xl border border-mint/30 bg-mint/10 p-5">
+          <div className="flex items-start gap-3">
+            <div className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-mint text-ink">
+              <Camera size={19} />
+            </div>
+
+            <div>
+              <p className="font-black">
+                {hr
+                  ? "Kako snimiti fotografiju za odobrenje"
+                  : "How to get this photo approved"}
+              </p>
+
+              <p className="mt-1 text-sm leading-relaxed text-ink/55">
+                {hr
+                  ? "Pokaži traženi proizvod ili izložbeno mjesto zajedno s okolnom policom."
+                  : "Show the requested product or display together with the surrounding shelf."}
+              </p>
+            </div>
+          </div>
+
+          <div className="mt-5 grid gap-4">
+            <div className="rounded-2xl bg-white p-4">
+              <p className="font-black text-mint">
+                {hr ? "✓ Obavezno" : "✓ Do"}
+              </p>
+
+              <ul className="mt-2 space-y-2 text-sm leading-relaxed text-ink/65">
+                <li>{hr ? "• Snimi cijelu relevantnu policu ili izložbeno mjesto." : "• Capture the entire relevant shelf or display."}</li>
+                <li>{hr ? "• Proizvod mora biti jasno vidljiv i fotografija mora biti oštra." : "• Keep the requested product clearly visible and in focus."}</li>
+                <li>{hr ? "• Ako se provjerava cijena, proizvod i cijena moraju biti vidljivi na istoj fotografiji." : "• For price checks, show the product and price label in the same photo."}</li>
+                <li>{hr ? "• Stani dovoljno daleko da se vidi položaj proizvoda na polici." : "• Stand far enough back to show the product in its shelf context."}</li>
+              </ul>
+            </div>
+
+            <div className="rounded-2xl bg-coral/10 p-4">
+              <p className="font-black text-coral">
+                {hr ? "✕ Izbjegavaj" : "✕ Avoid"}
+              </p>
+
+              <ul className="mt-2 space-y-2 text-sm leading-relaxed text-ink/65">
+                <li>{hr ? "• Mutne, tamne ili previše približene fotografije." : "• Blurry, dark, or overly zoomed-in photos."}</li>
+                <li>{hr ? "• Odrezani proizvod, cijenu ili dio police." : "• Cutting off the product, price, or part of the shelf."}</li>
+                <li>{hr ? "• Prst preko kamere ili nepotrebne osobe u kadru." : "• Fingers over the camera or unnecessary people in the frame."}</li>
+                <li>{hr ? "• Fotografiranje zaslona ili druge fotografije." : "• Screenshots or photos of another photo."}</li>
+              </ul>
+            </div>
+          </div>
+
+          <p className="mt-4 text-xs font-semibold leading-relaxed text-ink/45">
+            {hr
+              ? "Fotografija koja ne pokazuje jasno traženi dokaz može biti odbijena."
+              : "A photo that does not clearly show the requested evidence may be rejected."}
           </p>
         </div>
 
@@ -565,6 +613,26 @@ export function MissionRunner({
             <p className="mt-2 text-sm text-ink/50">
               Polica is verifying that the check was completed at the store.
             </p>
+
+            <div className="mt-5 rounded-2xl bg-mint/10 p-4">
+              <p className="font-black">
+                {hr ? "Prije slanja provjeri" : "Before submitting"}
+              </p>
+
+              <div className="mt-3 space-y-2 text-sm text-ink/65">
+                {[
+                  hr ? "Traženi proizvod, polica ili izložbeno mjesto jasno su vidljivi." : "The requested product, shelf, or display is clearly visible.",
+                  hr ? "Fotografija je oštra, dovoljno svijetla i nije pogrešno odrezana." : "The photo is clear, bright enough, and not cropped incorrectly.",
+                  hr ? "Cijena je vidljiva ako je zadatak traži." : "The price is visible when the task requires it.",
+                  hr ? "Provjera je napravljena u ispravnoj trgovini." : "The check was completed at the correct store.",
+                ].map((item) => (
+                  <div key={item} className="flex items-start gap-2">
+                    <CheckCircle2 className="mt-0.5 shrink-0 text-mint" size={16} />
+                    <span>{item}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
 
             <div className="mt-6 rounded-2xl bg-white p-4">
               {position ? (
