@@ -25,19 +25,13 @@ export default async function OnboardingPage({
     data: profile,
   } = await supabase
     .from("profiles")
-    .select("role, first_name")
+    .select("first_name")
     .eq("id", user.id)
     .single();
 
   if (!profile) {
     redirect(
       `/${params.locale}/auth/login`
-    );
-  }
-
-  if (profile.role !== "agent") {
-    redirect(
-      `/${params.locale}/jobs`
     );
   }
 
@@ -51,17 +45,17 @@ export default async function OnboardingPage({
       </div>
 
       <p className="mt-8 text-xs font-bold uppercase tracking-[0.18em] text-mint">
-        Step 2 of 2
+        Your shopping profile
       </p>
 
       <h1 className="mt-2 text-4xl font-black leading-tight">
-        Make Polica work around you.
+        Manage your regular stores.
       </h1>
 
       <p className="mt-3 text-sm leading-relaxed text-ink/55">
-        Tell us which stores you already visit.
-        We'll use these preferences to make
-        mission discovery more relevant.
+        Add or remove the stores you regularly visit.
+        Polica uses these choices to show you more relevant
+        nearby opportunities.
       </p>
 
       <ShoppingProfile
