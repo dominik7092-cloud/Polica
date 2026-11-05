@@ -160,7 +160,11 @@ export function Jobs() {
     setLoadError("");
     const client = supabase();
 
-    const { data: jobRows, error } = await client.rpc("get_available_jobs");
+    const { data: jobRows, error } = await client
+      .from("jobs")
+      .select("id,store_id,title,job_type,reward_cents,refund_cents,estimated_minutes,steps")
+      .eq("published", true)
+      .order("reward_cents", { ascending: false });
 
     if (error) {
       setLoadError(error.message);
