@@ -117,7 +117,7 @@ export function ShoppingProfile({ locale }: { locale: string }) {
       const { data, error: locationError } = await client
         .from("retail_locations")
         .select("id,retailer,address,city,latitude,longitude")
-        .eq("retailer", chain)
+        .ilike("retailer", chain)
         .eq("active", true)
         .order("city", { ascending: true })
         .order("address", { ascending: true });
