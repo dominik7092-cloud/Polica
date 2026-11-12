@@ -41,6 +41,9 @@
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 	<string>Polica uses your location to support location verification while completing store missions, including when location checks continue in the background.</string>
 
+	<key>NSCameraUsageDescription</key>
+	<string>Polica uses the camera to capture live photographic evidence required to complete store missions.</string>
+
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 
