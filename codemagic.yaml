@@ -1,43 +1,51 @@
 workflows:
-  polica-ios-test:
-    name: Polica iOS Test Build
+  polica-ios-testflight:
+    name: Polica iOS TestFlight
     max_build_duration: 60
     instance_type: mac_mini_m2
+
+    integrations:
+      app_store_connect: Codemagic Polica
 
     environment:
       node: latest
       xcode: latest
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: com.polica.app
 
     scripts:
       - name: Install dependencies
         script: |
           cd polica
-          npm install
+          npm ci
 
-      - name: Create iOS project
-        script: |
-          cd polica
-          if [ ! -d "ios" ]; then
-            npx cap add ios --packagemanager SPM
-          fi
-
-      - name: Sync Capacitor
+      - name: Sync Capacitor iOS
         script: |
           cd polica
           npx cap sync ios
 
-      - name: Build Polica for iPhone Simulator
+      - name: Set up iOS code signing
         script: |
           cd polica/ios/App
-          xcodebuild \
-            -project App.xcodeproj \
-            -scheme App \
-            -configuration Debug \
-            -sdk iphonesimulator \
-            -destination "generic/platform=iOS Simulator" \
-            CODE_SIGNING_ALLOWED=NO \
-            build
+          xcode-project use-profiles
+
+      - name: Set build number
+        script: |
+          cd polica/ios/App
+          agvtool new-version -all $BUILD_NUMBER
+
+      - name: Build signed IPA
+        script: |
+          cd polica/ios/App
+          xcode-project build-ipa \
+            --project "App.xcodeproj" \
+            --scheme "App"
 
     artifacts:
-      - $HOME/Library/Developer/Xcode/DerivedData/**/Build/Products/Debug-iphonesimulator/*.app
+      - polica/ios/App/build/ios/ipa/*.ipa
       - /tmp/xcodebuild_logs/*.log
+
+    publishing:
+      app_store_connect:
+        auth: integration
