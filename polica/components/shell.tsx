@@ -43,9 +43,22 @@ export function Shell({
       className={`mx-auto min-h-screen max-w-md bg-cream ${
         showBottomNavigation ? "pb-28" : "pb-8"
       }`}
+      style={{
+        paddingBottom: showBottomNavigation
+          ? "calc(7rem + env(safe-area-inset-bottom, 0px))"
+          : "calc(2rem + env(safe-area-inset-bottom, 0px))",
+      }}
     >
-      <div className="flex items-center justify-between px-5 pt-5">
-        <Link href={`/${locale}`} className="text-2xl font-black tracking-tight">
+      <header
+        className="flex items-center justify-between px-5 pb-2"
+        style={{
+          paddingTop: "calc(1.25rem + env(safe-area-inset-top, 0px))",
+        }}
+      >
+        <Link
+          href={`/${locale}`}
+          className="text-2xl font-black tracking-tight"
+        >
           polica<span className="text-mint">.</span>
         </Link>
 
@@ -57,14 +70,20 @@ export function Shell({
           <Globe2 size={15} />
           {locale.toUpperCase()}
         </Link>
-      </div>
+      </header>
 
       {children}
 
       {showBottomNavigation && (
-        <nav className="glass safe-bottom fixed inset-x-0 bottom-0 z-50 mx-auto flex max-w-md justify-around border-t border-black/5 px-4 pt-3">
+        <nav
+          className="glass fixed inset-x-0 bottom-0 z-50 mx-auto flex max-w-md justify-around border-t border-black/5 px-4 pt-3"
+          style={{
+            paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom, 0px))",
+          }}
+        >
           {nav.map(({ route, label, icon: Icon }) => {
             const active = pathname.includes(`/${route}`);
+
             return (
               <Link
                 key={route}
