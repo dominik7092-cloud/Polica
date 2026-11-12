@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocale } from "next-intl";
@@ -196,7 +196,7 @@ export function MissionRunner({
         if (!blob) {
           setCameraError(
             hr
-              ? "Fotografiranje nije uspjelo. Pokušaj ponovno."
+              ? "Fotografiranje nije uspjelo. PokuÅ¡aj ponovno."
               : "Photo capture failed. Please try again.",
           );
           return;
@@ -223,7 +223,7 @@ export function MissionRunner({
     if (!navigator.geolocation) {
       setError(
         hr
-          ? "Lokacijske usluge nisu dostupne na ovom uređaju."
+          ? "Lokacijske usluge nisu dostupne na ovom ureÄ‘aju."
           : "Location services are not available on this device.",
       );
       return;
@@ -360,7 +360,7 @@ export function MissionRunner({
       return (
         <label className="mt-7 flex items-center rounded-2xl border border-black/10 bg-white px-5">
           <span className="text-3xl font-black">
-            {step.currency === "EUR" ? "€" : step.currency || "€"}
+            {step.currency === "EUR" ? "â‚¬" : step.currency || "â‚¬"}
           </span>
           <input
             type="number"
@@ -445,7 +445,7 @@ export function MissionRunner({
 
               <p className="mt-1 text-sm leading-relaxed text-ink/55">
                 {hr
-                  ? "Pokaži traženi proizvod ili izložbeno mjesto zajedno s okolnom policom."
+                  ? "PokaÅ¾i traÅ¾eni proizvod ili izloÅ¾beno mjesto zajedno s okolnom policom."
                   : "Show the requested product or display together with the surrounding shelf."}
               </p>
             </div>
@@ -454,34 +454,34 @@ export function MissionRunner({
           <div className="mt-5 grid gap-4">
             <div className="rounded-2xl bg-white p-4">
               <p className="font-black text-mint">
-                {hr ? "✓ Obavezno" : "✓ Do"}
+                {hr ? "âœ“ Obavezno" : "âœ“ Do"}
               </p>
 
               <ul className="mt-2 space-y-2 text-sm leading-relaxed text-ink/65">
-                <li>{hr ? "• Snimi cijelu relevantnu policu ili izložbeno mjesto." : "• Capture the entire relevant shelf or display."}</li>
-                <li>{hr ? "• Proizvod mora biti jasno vidljiv i fotografija mora biti oštra." : "• Keep the requested product clearly visible and in focus."}</li>
-                <li>{hr ? "• Ako se provjerava cijena, proizvod i cijena moraju biti vidljivi na istoj fotografiji." : "• For price checks, show the product and price label in the same photo."}</li>
-                <li>{hr ? "• Stani dovoljno daleko da se vidi položaj proizvoda na polici." : "• Stand far enough back to show the product in its shelf context."}</li>
+                <li>{hr ? "â€¢ Snimi cijelu relevantnu policu ili izloÅ¾beno mjesto." : "â€¢ Capture the entire relevant shelf or display."}</li>
+                <li>{hr ? "â€¢ Proizvod mora biti jasno vidljiv i fotografija mora biti oÅ¡tra." : "â€¢ Keep the requested product clearly visible and in focus."}</li>
+                <li>{hr ? "â€¢ Ako se provjerava cijena, proizvod i cijena moraju biti vidljivi na istoj fotografiji." : "â€¢ For price checks, show the product and price label in the same photo."}</li>
+                <li>{hr ? "â€¢ Stani dovoljno daleko da se vidi poloÅ¾aj proizvoda na polici." : "â€¢ Stand far enough back to show the product in its shelf context."}</li>
               </ul>
             </div>
 
             <div className="rounded-2xl bg-coral/10 p-4">
               <p className="font-black text-coral">
-                {hr ? "✕ Izbjegavaj" : "✕ Avoid"}
+                {hr ? "âœ• Izbjegavaj" : "âœ• Avoid"}
               </p>
 
               <ul className="mt-2 space-y-2 text-sm leading-relaxed text-ink/65">
-                <li>{hr ? "• Mutne, tamne ili previše približene fotografije." : "• Blurry, dark, or overly zoomed-in photos."}</li>
-                <li>{hr ? "• Odrezani proizvod, cijenu ili dio police." : "• Cutting off the product, price, or part of the shelf."}</li>
-                <li>{hr ? "• Prst preko kamere ili nepotrebne osobe u kadru." : "• Fingers over the camera or unnecessary people in the frame."}</li>
-                <li>{hr ? "• Fotografiranje zaslona ili druge fotografije." : "• Screenshots or photos of another photo."}</li>
+                <li>{hr ? "â€¢ Mutne, tamne ili previÅ¡e pribliÅ¾ene fotografije." : "â€¢ Blurry, dark, or overly zoomed-in photos."}</li>
+                <li>{hr ? "â€¢ Odrezani proizvod, cijenu ili dio police." : "â€¢ Cutting off the product, price, or part of the shelf."}</li>
+                <li>{hr ? "â€¢ Prst preko kamere ili nepotrebne osobe u kadru." : "â€¢ Fingers over the camera or unnecessary people in the frame."}</li>
+                <li>{hr ? "â€¢ Fotografiranje zaslona ili druge fotografije." : "â€¢ Screenshots or photos of another photo."}</li>
               </ul>
             </div>
           </div>
 
           <p className="mt-4 text-xs font-semibold leading-relaxed text-ink/45">
             {hr
-              ? "Fotografija koja ne pokazuje jasno traženi dokaz može biti odbijena."
+              ? "Fotografija koja ne pokazuje jasno traÅ¾eni dokaz moÅ¾e biti odbijena."
               : "A photo that does not clearly show the requested evidence may be rejected."}
           </p>
         </div>
@@ -588,15 +588,15 @@ export function MissionRunner({
         {complete ? (
           <Card className="mt-8 p-8 text-center">
             <CheckCircle2 className="mx-auto text-mint" size={58} />
-            <h2 className="mt-4 text-4xl font-black">Done ✓</h2>
+            <h2 className="mt-4 text-4xl font-black">Done âœ“</h2>
             {typeof reservation.job.reward === "number" && (
               <p className="mt-5 text-3xl font-black">
-                €{reservation.job.reward.toFixed(2)}
+                â‚¬{reservation.job.reward.toFixed(2)}
               </p>
             )}
             <p className="mt-1 font-bold text-ink/55">Pending review</p>
             <p className="mt-4 text-sm leading-relaxed text-ink/50">
-              We’ll move the reward to Available earnings once this check is
+              Weâ€™ll move the reward to Available earnings once this check is
               approved.
             </p>
             <Button
@@ -621,9 +621,9 @@ export function MissionRunner({
 
               <div className="mt-3 space-y-2 text-sm text-ink/65">
                 {[
-                  hr ? "Traženi proizvod, polica ili izložbeno mjesto jasno su vidljivi." : "The requested product, shelf, or display is clearly visible.",
-                  hr ? "Fotografija je oštra, dovoljno svijetla i nije pogrešno odrezana." : "The photo is clear, bright enough, and not cropped incorrectly.",
-                  hr ? "Cijena je vidljiva ako je zadatak traži." : "The price is visible when the task requires it.",
+                  hr ? "TraÅ¾eni proizvod, polica ili izloÅ¾beno mjesto jasno su vidljivi." : "The requested product, shelf, or display is clearly visible.",
+                  hr ? "Fotografija je oÅ¡tra, dovoljno svijetla i nije pogreÅ¡no odrezana." : "The photo is clear, bright enough, and not cropped incorrectly.",
+                  hr ? "Cijena je vidljiva ako je zadatak traÅ¾i." : "The price is visible when the task requires it.",
                   hr ? "Provjera je napravljena u ispravnoj trgovini." : "The check was completed at the correct store.",
                 ].map((item) => (
                   <div key={item} className="flex items-start gap-2">
@@ -641,7 +641,7 @@ export function MissionRunner({
                     <CheckCircle2 size={22} />
                   </div>
                   <div>
-                    <p className="font-black">Location verified ✓</p>
+                    <p className="font-black">Location verified âœ“</p>
                     <p className="text-xs text-ink/45">
                       You can finish the check.
                     </p>
@@ -655,7 +655,7 @@ export function MissionRunner({
                   onClick={captureLocation}
                 >
                   <Navigation className="mr-2 inline" size={18} />
-                  {locationLoading ? "Verifying location…" : "Verify location"}
+                  {locationLoading ? "Verifying locationâ€¦" : "Verify location"}
                 </Button>
               )}
             </div>
@@ -673,7 +673,7 @@ export function MissionRunner({
               onClick={() => void submit()}
             >
               <Send className="mr-2 inline" size={18} />
-              {submitting ? "Finishing…" : "Finish check"}
+              {submitting ? "Finishingâ€¦" : "Finish check"}
             </Button>
           </Card>
         ) : currentStep ? (
@@ -728,3 +728,4 @@ export function MissionRunner({
     </div>
   );
 }
+

@@ -12,6 +12,7 @@ let package = Package(
     ],
     dependencies: [
         .package(url: "https://github.com/ionic-team/capacitor-swift-pm.git", exact: "8.6.0"),
+        .package(name: "CapacitorCamera", path: "../../../node_modules/@capacitor/camera"),
         .package(name: "CapacitorLocalNotifications", path: "../../../node_modules/@capacitor/local-notifications"),
         .package(name: "CapawesomeCapacitorSettingsLauncher", path: "../../../node_modules/@capawesome/capacitor-settings-launcher"),
         .package(name: "CapgoBackgroundGeolocation", path: "../../../node_modules/@capgo/background-geolocation")
@@ -22,6 +23,7 @@ let package = Package(
             dependencies: [
                 .product(name: "Capacitor", package: "capacitor-swift-pm"),
                 .product(name: "Cordova", package: "capacitor-swift-pm"),
+                .product(name: "CapacitorCamera", package: "CapacitorCamera"),
                 .product(name: "CapacitorLocalNotifications", package: "CapacitorLocalNotifications"),
                 .product(name: "CapawesomeCapacitorSettingsLauncher", package: "CapawesomeCapacitorSettingsLauncher"),
                 .product(name: "CapgoBackgroundGeolocation", package: "CapgoBackgroundGeolocation")
