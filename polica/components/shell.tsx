@@ -17,26 +17,36 @@ export function Shell({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
+  const hr = locale === "hr";
 
   const nav = [
-    { route: "jobs", label: "Earn", icon: BriefcaseBusiness },
-    { route: "wallet", label: "Earnings", icon: Wallet },
-    { route: "profile", label: "Profile", icon: UserRound },
+    {
+      route: "jobs",
+      label: hr ? "Zaradi" : "Earn",
+      icon: BriefcaseBusiness,
+    },
+    {
+      route: "wallet",
+      label: hr ? "Zarada" : "Earnings",
+      icon: Wallet,
+    },
+    {
+      route: "profile",
+      label: hr ? "Profil" : "Profile",
+      icon: UserRound,
+    },
   ] as const;
 
   const hideBottomNavigation =
-    pathname.includes("/auth/") ||
-    pathname.includes("/onboarding");
+    pathname.includes("/auth/") || pathname.includes("/onboarding");
 
   const isWorkspace =
-    pathname.includes("/admin") ||
-    pathname.includes("/client");
+    pathname.includes("/admin") || pathname.includes("/client");
 
   const showBottomNavigation = !hideBottomNavigation && !isWorkspace;
 
   const languagePath =
-    `/${locale === "en" ? "hr" : "en"}` +
-    pathname.replace(/^\/(en|hr)/, "");
+    `/${hr ? "en" : "hr"}` + pathname.replace(/^\/(en|hr)/, "");
 
   return (
     <main
@@ -63,7 +73,7 @@ export function Shell({
         </Link>
 
         <Link
-          aria-label="Change language"
+          aria-label={hr ? "Promijeni jezik" : "Change language"}
           className="flex items-center gap-2 rounded-full bg-white px-3 py-2 text-xs font-bold shadow-sm"
           href={languagePath}
         >
@@ -76,6 +86,7 @@ export function Shell({
 
       {showBottomNavigation && (
         <nav
+          aria-label={hr ? "Glavna navigacija" : "Main navigation"}
           className="glass fixed inset-x-0 bottom-0 z-50 mx-auto flex max-w-md justify-around border-t border-black/5 px-4 pt-3"
           style={{
             paddingBottom: "calc(0.75rem + env(safe-area-inset-bottom, 0px))",
