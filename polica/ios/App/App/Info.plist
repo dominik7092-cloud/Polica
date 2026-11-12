@@ -44,6 +44,12 @@
 	<key>NSCameraUsageDescription</key>
 	<string>Polica uses the camera to capture live photographic evidence required to complete store missions.</string>
 
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Polica requires photo access to process photographic evidence captured while completing store missions.</string>
+
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Polica may use photo access when processing photographic evidence captured during store missions.</string>
+
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 
